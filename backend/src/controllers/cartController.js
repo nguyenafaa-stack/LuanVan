@@ -1,10 +1,10 @@
 const cartService = require("../services/cartService");
-
 const postToCart = async (req, res) => {
   try {
     const customer_id = req.user.customer_id;
 
-    const { product_id, quantity } = req.body;
+    const { product_id, quantity, customization_json, preview_image_url } =
+      req.body;
 
     if (!product_id || !quantity || quantity <= 0) {
       return res
@@ -15,7 +15,9 @@ const postToCart = async (req, res) => {
     const result = await cartService.addToCart(
       customer_id,
       product_id,
-      quantity
+      quantity,
+      customization_json,
+      preview_image_url
     );
 
     res.status(200).json({
@@ -23,6 +25,7 @@ const postToCart = async (req, res) => {
       message: result.message,
     });
   } catch (error) {
+    console.error("Lỗi Controller Cart:", error);
     res.status(500).json({
       success: false,
       message: "Lỗi: " + error.message,
