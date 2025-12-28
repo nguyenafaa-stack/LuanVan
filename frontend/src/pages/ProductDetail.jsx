@@ -9,21 +9,23 @@ const ProductDetail = () => {
   const stageRef = useRef(null);
   const [product, setProduct] = useState(null);
   const [personalization, setPersonalization] = useState({});
+  // Thêm state để theo dõi tab đang mở
+  const [isDesignMode, setIsDesignMode] = useState(false);
+
   useEffect(() => {
     axiosInstance.get(`/products/${id}`).then((res) => {
       const p = res.data.data;
       setProduct(p);
 
       if (p.template_type === "mug") {
-        setPersonalization({
-          userName: "Tên của bạn",
-          selectedDesignId: "d1",
-        });
+        setPersonalization({ userName: "Tên của bạn", selectedDesignId: "d1" });
       } else {
         setPersonalization({
           characterId: null,
           shirtColorId: "white",
           shirtText: "",
+          textColor: "#000000",
+          textSize: 28,
           imagePos: { x: 175, y: 150 },
           imageSize: { width: 150, height: 150 },
           textPos: { x: 175, y: 420 },
@@ -33,37 +35,40 @@ const ProductDetail = () => {
   }, [id]);
 
   const handleAddToCart = async () => {
-    if (!stageRef.current) {
-      alert("Vui lòng đợi hệ thống thiết kế tải xong.");
-      return;
+    let previewUrl = null;
+    let customJson = null;
+
+    // Chỉ yêu cầu Stage nếu sản phẩm có thiết kế VÀ người dùng đang ở tab thiết kế
+    const shouldCaptureCanvas =
+      (product.template_type === "tshirt_animal" ||
+        product.template_type === "mug") &&
+      isDesignMode;
+
+    if (shouldCaptureCanvas) {
+      if (!stageRef.current) {
+        alert("Vui lòng đợi hệ thống thiết kế tải xong.");
+        return;
+      }
+      previewUrl = stageRef.current.toDataURL({
+        mimeType: "image/jpeg",
+        quality: 0.7,
+      });
+      customJson = personalization;
     }
 
     try {
-      const previewUrl = stageRef.current.toDataURL({
-        pixelRatio: 2,
-        mimeType: "image/jpeg", // Chuyển sang jpeg để giảm dung lượng payload
-        quality: 0.8,
-      });
-
       const payload = {
         product_id: product.product_id,
         quantity: 1,
-        customization_json: personalization,
+        customization_json: customJson,
         preview_image_url: previewUrl,
       };
 
-      // console.log("Payload gửi đi:", payload);
-
       const response = await axiosInstance.post("/cart/add", payload);
-      alert(response.data.message || "Đã thêm thiết kế vào giỏ hàng!");
+      alert(response.data.message || "Đã thêm vào giỏ hàng!");
     } catch (err) {
-      console.error("Lỗi thêm giỏ hàng:", err);
-      // Kiểm tra lỗi 413 (Payload Too Large) tại đây
-      if (err.response?.status === 413) {
-        alert("Dữ liệu thiết kế quá lớn, vui lòng giảm chất lượng ảnh.");
-      } else {
-        alert(err.response?.data?.message || "Không thể thêm vào giỏ hàng.");
-      }
+      console.error("Lỗi:", err);
+      alert("Không thể thêm vào giỏ hàng.");
     }
   };
 
@@ -72,24 +77,21 @@ const ProductDetail = () => {
       <div className="container mt-5 text-center">Đang tải sản phẩm...</div>
     );
 
+  const commonProps = {
+    product,
+    data: personalization,
+    setData: setPersonalization,
+    stageRef,
+    onAddToCart: handleAddToCart,
+    setIsDesignMode, // Truyền hàm này xuống
+  };
+
   return (
     <>
       {product.template_type === "mug" ? (
-        <MugProduct
-          product={product}
-          data={personalization}
-          setData={setPersonalization}
-          stageRef={stageRef}
-          onAddToCart={handleAddToCart}
-        />
+        <MugProduct {...commonProps} />
       ) : (
-        <ShirtProduct
-          product={product}
-          data={personalization}
-          setData={setPersonalization}
-          stageRef={stageRef}
-          onAddToCart={handleAddToCart}
-        />
+        <ShirtProduct {...commonProps} />
       )}
     </>
   );

@@ -1,20 +1,26 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Stage, Layer, Group, Text, Transformer } from "react-konva";
-import KonvaImageLayer from "./KonvaImageLayer";
+import {
+  Stage,
+  Layer,
+  Group,
+  Text,
+  Transformer,
+  Image as KonvaImage,
+} from "react-konva";
+import useImage from "use-image";
 import { BASE_URL } from "../api/axiosInstance";
 
-// Component con xử lý Logo có Transformer
+// --- Component con xử lý Logo (Giữ nguyên) ---
 const EditableImage = ({ shapeProps, isSelected, onSelect, onChange, url }) => {
   const shapeRef = useRef();
   const trRef = useRef();
-
+  const [img] = useImage(url, "anonymous");
   useEffect(() => {
-    if (isSelected) {
+    if (isSelected && trRef.current) {
       trRef.current.nodes([shapeRef.current]);
       trRef.current.getLayer().batchDraw();
     }
   }, [isSelected]);
-
   return (
     <React.Fragment>
       <Group
@@ -22,7 +28,7 @@ const EditableImage = ({ shapeProps, isSelected, onSelect, onChange, url }) => {
         {...shapeProps}
         draggable
         onMouseDown={(e) => {
-          e.cancelBubble = true; // Ngăn stage nhận sự kiện click
+          e.cancelBubble = true;
           onSelect();
         }}
         onTap={(e) => {
@@ -30,11 +36,7 @@ const EditableImage = ({ shapeProps, isSelected, onSelect, onChange, url }) => {
           onSelect();
         }}
         onDragEnd={(e) => {
-          onChange({
-            ...shapeProps,
-            x: e.target.x(),
-            y: e.target.y(),
-          });
+          onChange({ ...shapeProps, x: e.target.x(), y: e.target.y() });
         }}
         onTransformEnd={() => {
           const node = shapeRef.current;
@@ -51,22 +53,76 @@ const EditableImage = ({ shapeProps, isSelected, onSelect, onChange, url }) => {
           });
         }}
       >
-        <KonvaImageLayer
-          url={url}
+        <KonvaImage
+          image={img}
           x={0}
           y={0}
           width={shapeProps.width}
           height={shapeProps.height}
         />
       </Group>
+      {isSelected && <Transformer ref={trRef} keepRatio={true} />}
+    </React.Fragment>
+  );
+};
+
+// --- Component MỚI: Xử lý Text có thể thay đổi kích thước ---
+const EditableText = ({ shapeProps, isSelected, onSelect, onChange }) => {
+  const shapeRef = useRef();
+  const trRef = useRef();
+
+  useEffect(() => {
+    if (isSelected && trRef.current) {
+      trRef.current.nodes([shapeRef.current]);
+      trRef.current.getLayer().batchDraw();
+    }
+  }, [isSelected]);
+
+  return (
+    <React.Fragment>
+      <Text
+        ref={shapeRef}
+        {...shapeProps}
+        draggable
+        onMouseDown={(e) => {
+          e.cancelBubble = true;
+          onSelect();
+        }}
+        onTap={(e) => {
+          e.cancelBubble = true;
+          onSelect();
+        }}
+        onDragEnd={(e) => {
+          onChange({ ...shapeProps, x: e.target.x(), y: e.target.y() });
+        }}
+        onTransformEnd={() => {
+          const node = shapeRef.current;
+          const scaleX = node.scaleX();
+          // Với Text, thay vì đổi width/height, ta đổi fontSize để chữ không bị méo (pixelate)
+          const newFontSize = Math.max(10, node.fontSize() * scaleX);
+
+          node.scaleX(1);
+          node.scaleY(1);
+
+          onChange({
+            ...shapeProps,
+            x: node.x(),
+            y: node.y(),
+            fontSize: newFontSize,
+          });
+        }}
+      />
       {isSelected && (
         <Transformer
           ref={trRef}
-          rotateEnabled={true}
-          keepRatio={true}
-          onMouseDown={(e) => (e.cancelBubble = true)}
+          enabledAnchors={[
+            "top-left",
+            "top-right",
+            "bottom-left",
+            "bottom-right",
+          ]} // Chỉ dùng các góc để giữ tỉ lệ
           boundBoxFunc={(oldBox, newBox) => {
-            if (newBox.width < 20 || newBox.height < 20) return oldBox;
+            if (newBox.width < 30) return oldBox;
             return newBox;
           }}
         />
@@ -75,12 +131,61 @@ const EditableImage = ({ shapeProps, isSelected, onSelect, onChange, url }) => {
   );
 };
 
-const ShirtProduct = ({ product, data, setData, stageRef, onAddToCart }) => {
+// --- Component ColoredShirt (Giữ nguyên) ---
+const ColoredShirt = ({ url, color }) => {
+  const [img] = useImage(url, "anonymous");
+  const imgRef = useRef();
+  useEffect(() => {
+    if (img) imgRef.current.cache();
+  }, [img, color]);
+  const hexToRgb = (hex) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : { r: 255, g: 255, b: 255 };
+  };
+  const rgb = hexToRgb(color);
+  return (
+    <KonvaImage
+      name="shirtBackground"
+      ref={imgRef}
+      image={img}
+      x={0}
+      y={0}
+      width={500}
+      height={550}
+      filters={[window.Konva.Filters.RGB]}
+      red={rgb.r}
+      green={rgb.g}
+      blue={rgb.b}
+    />
+  );
+};
+const ShirtProduct = ({
+  product,
+  data,
+  setData,
+  stageRef,
+  onAddToCart,
+  setIsDesignMode,
+}) => {
   const [activeTab, setActiveTab] = useState("design");
   const [selectedId, setSelectedId] = useState(null);
   const [mainImage, setMainImage] = useState(
     product.images?.[0]?.image_url || product.image_url || ""
   );
+
+  // SỬA TẠI ĐÂY: Hàm xử lý chuyển Tab để thông báo cho ProductDetail
+  const handleTabChange = (tabName) => {
+    setActiveTab(tabName);
+    if (setIsDesignMode) {
+      setIsDesignMode(tabName === "design");
+    }
+  };
 
   const CHARACTERS = [
     {
@@ -96,37 +201,37 @@ const ShirtProduct = ({ product, data, setData, stageRef, onAddToCart }) => {
   ];
 
   const SHIRT_COLORS = [
-    {
-      id: "white",
-      color: "#ffffff",
-      url: `${BASE_URL}/uploads/t-shirt-white.jpg`,
-    },
-    {
-      id: "black",
-      color: "#212529",
-      url: `${BASE_URL}/uploads/t-shirt-black.jpg`,
-    },
-    {
-      id: "gray",
-      color: "#5e6164ff",
-      url: `${BASE_URL}/uploads/t-shirt-gray.jpg`,
-    },
+    { id: "white", color: "#ffffff", label: "Trắng" },
+    { id: "blue", color: "#3498db", label: "Xanh" },
+    { id: "red", color: "#e74c3c", label: "Đỏ" },
+    { id: "black", color: "#2c3e50", label: "Than" },
+    { id: "yellow", color: "#f1c40f", label: "Vàng" },
   ];
 
-  const selectedShirt =
-    SHIRT_COLORS.find((c) => c.id === (data.shirtColorId || "white")) ||
-    SHIRT_COLORS[0];
+  const TEXT_COLORS = [
+    { name: "Đen", hex: "#000000" },
+    { name: "Trắng", hex: "#ffffff" },
+    { name: "Đỏ", hex: "#ff0000" },
+    { name: "Vàng", hex: "#ffd700" },
+  ];
+
+  const shirtBaseUrl = `${BASE_URL}/uploads/shirt01.png`;
   const selectedChar = data.characterId
     ? CHARACTERS.find((c) => c.id === data.characterId)
     : null;
+  const currentColor =
+    SHIRT_COLORS.find((c) => c.id === data.shirtColorId)?.color || "#ffffff";
 
   const handleStageMouseDown = (e) => {
     const clickedOnStage = e.target === e.target.getStage();
     const clickedOnBackground = e.target.name() === "shirtBackground";
-    if (clickedOnStage || clickedOnBackground) {
-      setSelectedId(null);
-    }
+    if (clickedOnStage || clickedOnBackground) setSelectedId(null);
   };
+
+  // Tự động bật mode thiết kế khi component mount nếu tab mặc định là design
+  useEffect(() => {
+    if (setIsDesignMode) setIsDesignMode(activeTab === "design");
+  }, []);
 
   return (
     <div className="container mt-5 bg-white p-4 rounded shadow-sm">
@@ -137,17 +242,17 @@ const ShirtProduct = ({ product, data, setData, stageRef, onAddToCart }) => {
               className={`btn ${
                 activeTab === "real" ? "btn-primary" : "btn-outline-primary"
               }`}
-              onClick={() => setActiveTab("real")}
+              onClick={() => handleTabChange("real")}
             >
-              <i className="bi bi-image me-2"></i>Ảnh mẫu
+              Ảnh mẫu
             </button>
             <button
               className={`btn ${
                 activeTab === "design" ? "btn-primary" : "btn-outline-primary"
               }`}
-              onClick={() => setActiveTab("design")}
+              onClick={() => handleTabChange("design")}
             >
-              <i className="bi bi-magic me-2"></i>Tự thiết kế
+              Tự thiết kế
             </button>
           </div>
 
@@ -164,14 +269,7 @@ const ShirtProduct = ({ product, data, setData, stageRef, onAddToCart }) => {
                 onTouchStart={handleStageMouseDown}
               >
                 <Layer>
-                  <KonvaImageLayer
-                    name="shirtBackground"
-                    url={selectedShirt.url}
-                    x={0}
-                    y={0}
-                    width={500}
-                    height={550}
-                  />
+                  <ColoredShirt url={shirtBaseUrl} color={currentColor} />
                   {selectedChar && (
                     <EditableImage
                       url={selectedChar.main}
@@ -183,7 +281,7 @@ const ShirtProduct = ({ product, data, setData, stageRef, onAddToCart }) => {
                         width: data.imageSize?.width || 100,
                         height: data.imageSize?.height || 100,
                       }}
-                      onChange={(newProps) => {
+                      onChange={(newProps) =>
                         setData({
                           ...data,
                           imagePos: { x: newProps.x, y: newProps.y },
@@ -191,29 +289,29 @@ const ShirtProduct = ({ product, data, setData, stageRef, onAddToCart }) => {
                             width: newProps.width,
                             height: newProps.height,
                           },
-                        });
-                      }}
+                        })
+                      }
                     />
                   )}
                   {data.shirtText && (
-                    <Text
-                      text={data.shirtText}
-                      x={data.textPos?.x || 175}
-                      y={data.textPos?.y || 260}
-                      fontSize={28}
-                      fontStyle="bold"
-                      fill={data.shirtColorId === "black" ? "white" : "black"}
-                      draggable
-                      onMouseDown={(e) => {
-                        e.cancelBubble = true;
-                        setSelectedId("text");
+                    <EditableText
+                      isSelected={selectedId === "text"}
+                      onSelect={() => setSelectedId("text")}
+                      shapeProps={{
+                        text: data.shirtText,
+                        x: data.textPos?.x || 175,
+                        y: data.textPos?.y || 260,
+                        fontSize: data.textSize || 28,
+                        fontStyle: "bold",
+                        fill: data.textColor || "#000000",
                       }}
-                      onDragEnd={(e) => {
+                      onChange={(newProps) =>
                         setData({
                           ...data,
-                          textPos: { x: e.target.x(), y: e.target.y() },
-                        });
-                      }}
+                          textPos: { x: newProps.x, y: newProps.y },
+                          textSize: newProps.fontSize,
+                        })
+                      }
                     />
                   )}
                 </Layer>
@@ -226,32 +324,9 @@ const ShirtProduct = ({ product, data, setData, stageRef, onAddToCart }) => {
                   style={{ maxHeight: "450px" }}
                   alt="Real"
                 />
-                <div className="d-flex justify-content-center gap-2 overflow-auto py-2">
-                  {product.images?.map((img, idx) => (
-                    <img
-                      key={idx}
-                      src={`${BASE_URL}${img.image_url}`}
-                      className={`img-thumbnail ${
-                        mainImage === img.image_url
-                          ? "border-primary border-2"
-                          : ""
-                      }`}
-                      style={{
-                        width: "60px",
-                        height: "60px",
-                        cursor: "pointer",
-                        objectFit: "cover",
-                      }}
-                      onClick={() => setMainImage(img.image_url)}
-                    />
-                  ))}
-                </div>
               </div>
             )}
           </div>
-          <p className="text-center text-muted small mt-2">
-            💡 Click vào áo hoặc vùng trống để tắt khung Edit logo
-          </p>
         </div>
 
         <div className="col-md-5 ps-lg-5 mt-4 mt-md-0">
@@ -260,12 +335,9 @@ const ShirtProduct = ({ product, data, setData, stageRef, onAddToCart }) => {
             {Number(product.price).toLocaleString()}đ
           </h3>
           <div className="p-4 border rounded bg-white shadow-sm mb-4">
-            <h6 className="fw-bold text-secondary mb-3 text-uppercase small border-bottom pb-2">
-              Tùy chỉnh thiết kế
-            </h6>
             <div className="mb-4">
               <label className="fw-bold small mb-2 d-block text-muted">
-                MÀU SẮC ÁO
+                MÀU ÁO
               </label>
               <div className="d-flex gap-3">
                 {SHIRT_COLORS.map((c) => (
@@ -273,37 +345,63 @@ const ShirtProduct = ({ product, data, setData, stageRef, onAddToCart }) => {
                     key={c.id}
                     onClick={() => setData({ ...data, shirtColorId: c.id })}
                     className={`rounded-circle border border-2 ${
-                      data.shirtColorId === c.id
-                        ? "border-primary shadow"
-                        : "border-light"
+                      data.shirtColorId === c.id ? "border-primary" : ""
                     }`}
                     style={{
                       backgroundColor: c.color,
-                      width: "35px",
-                      height: "35px",
+                      width: "30px",
+                      height: "30px",
                       cursor: "pointer",
                     }}
                   />
                 ))}
               </div>
             </div>
+
             <div className="mb-4">
-              <label className="fw-bold small mb-2 d-block text-muted">
-                NHẬP CHỮ
+              <label className="fw-bold small mb-2 d-block text-muted text-uppercase">
+                Nội dung in
               </label>
               <input
                 type="text"
                 className="form-control border-2"
                 value={data.shirtText || ""}
-                onChange={(e) =>
-                  setData({ ...data, shirtText: e.target.value })
-                }
-                placeholder="Nội dung in..."
+                onChange={(e) => {
+                  setData({ ...data, shirtText: e.target.value });
+                  if (activeTab !== "design") handleTabChange("design"); // Tự động switch tab
+                }}
+                placeholder="Nhập chữ..."
               />
             </div>
+
+            <div className="mb-4">
+              <label className="fw-bold small mb-2 d-block text-muted text-uppercase">
+                Màu chữ
+              </label>
+              <div className="d-flex gap-2 flex-wrap">
+                {TEXT_COLORS.map((tc) => (
+                  <div
+                    key={tc.hex}
+                    onClick={() => setData({ ...data, textColor: tc.hex })}
+                    className={`rounded-circle border border-2 ${
+                      data.textColor === tc.hex
+                        ? "border-dark shadow-sm"
+                        : "border-light"
+                    }`}
+                    style={{
+                      backgroundColor: tc.hex,
+                      width: "28px",
+                      height: "28px",
+                      cursor: "pointer",
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
             <div className="mb-2">
-              <label className="fw-bold small mb-2 d-block text-muted">
-                CHỌN LOGO
+              <label className="fw-bold small mb-2 d-block text-muted text-uppercase">
+                Logo
               </label>
               <div className="d-flex gap-2">
                 {CHARACTERS.map((char) => (
@@ -314,7 +412,10 @@ const ShirtProduct = ({ product, data, setData, stageRef, onAddToCart }) => {
                         ? "btn-primary"
                         : "btn-outline-secondary"
                     }`}
-                    onClick={() => setData({ ...data, characterId: char.id })}
+                    onClick={() => {
+                      setData({ ...data, characterId: char.id });
+                      if (activeTab !== "design") handleTabChange("design"); // Tự động switch tab
+                    }}
                   >
                     {char.label}
                   </button>
@@ -326,21 +427,17 @@ const ShirtProduct = ({ product, data, setData, stageRef, onAddToCart }) => {
                     setSelectedId(null);
                   }}
                 >
-                  Xóa Logo
+                  Xóa
                 </button>
               </div>
             </div>
           </div>
-          {/* Gắn hàm onAddToCart vào đây */}
           <button
             className="btn btn-dark btn-lg w-100 py-3 fw-bold shadow"
             onClick={onAddToCart}
           >
-            <i className="bi bi-cart-plus me-2"></i> THÊM VÀO GIỎ HÀNG
+            THÊM GIỎ HÀNG
           </button>
-          <p className="text-muted mt-4 small border-top pt-3">
-            <strong>Mô tả:</strong> {product.description}
-          </p>
         </div>
       </div>
     </div>

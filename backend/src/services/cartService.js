@@ -7,9 +7,8 @@ const addToCart = async (
   customization_json,
   preview_image_url
 ) => {
-  // console.log(preview_image_url);
-
   try {
+    // 1. Lấy hoặc tạo Cart ID
     let [carts] = await db.query(
       "SELECT cart_id FROM Cart WHERE customer_id = ?",
       [customer_id]
@@ -23,47 +22,55 @@ const addToCart = async (
           )[0].insertId
         : carts[0].cart_id;
 
-    // Chuẩn hóa JSON để so sánh chính xác hơn
-    const customDataString = customization_json
-      ? JSON.stringify(customization_json)
-      : null;
+    // 2. Chuẩn hóa chuỗi JSON để so sánh chính xác
+    // Sắp xếp các key trong Object trước khi stringify giúp tránh việc cùng 1 thiết kế nhưng chuỗi khác nhau
+    const customDataString =
+      customization_json && Object.keys(customization_json).length > 0
+        ? JSON.stringify(
+            customization_json,
+            Object.keys(customization_json).sort()
+          )
+        : null;
 
-    // Nếu có thiết kế, chúng ta nên kiểm tra kỹ
+    // 3. Logic kiểm tra trùng lặp để quyết định Cộng dồn hay Thêm mới
+    let existingItemId = null;
+
     if (customDataString) {
+      // Tìm sản phẩm có thiết kế trùng khớp hoàn toàn
       const [existingItems] = await db.query(
-        "SELECT cart_item_id, quantity FROM Cart_item WHERE cart_id = ? AND product_id = ? AND customization_json = ?",
+        "SELECT cart_item_id FROM Cart_item WHERE cart_id = ? AND product_id = ? AND customization_json = ?",
         [cartId, product_id, customDataString]
       );
-
-      if (existingItems.length > 0) {
-        await db.query(
-          "UPDATE Cart_item SET quantity = quantity + ? WHERE cart_item_id = ?",
-          [quantity, existingItems[0].cart_item_id]
-        );
-        return { message: "Đã cập nhật số lượng thiết kế này" };
-      }
+      if (existingItems.length > 0)
+        existingItemId = existingItems[0].cart_item_id;
     } else {
-      // Sản phẩm không có thiết kế (mua mặc định)
+      // Tìm sản phẩm mặc định (customization_json IS NULL)
       const [existingDefault] = await db.query(
-        "SELECT cart_item_id, quantity FROM Cart_item WHERE cart_id = ? AND product_id = ? AND customization_json IS NULL",
+        "SELECT cart_item_id FROM Cart_item WHERE cart_id = ? AND product_id = ? AND customization_json IS NULL",
         [cartId, product_id]
       );
-      if (existingDefault.length > 0) {
-        await db.query(
-          "UPDATE Cart_item SET quantity = quantity + ? WHERE cart_item_id = ?",
-          [quantity, existingDefault[0].cart_item_id]
-        );
-        return { message: "Đã cập nhật số lượng sản phẩm" };
-      }
+      if (existingDefault.length > 0)
+        existingItemId = existingDefault[0].cart_item_id;
     }
 
-    // Thêm mới nếu không trùng
-    await db.query(
-      "INSERT INTO Cart_item (cart_id, product_id, quantity, customization_json, preview_image_url) VALUES (?, ?, ?, ?, ?)",
-      [cartId, product_id, quantity, customDataString, preview_image_url]
-    );
-    return { message: "Đã thêm vào giỏ hàng" };
+    // 4. Thực thi lệnh tương ứng
+    if (existingItemId) {
+      // CỘNG DỒN SỐ LƯỢNG
+      await db.query(
+        "UPDATE Cart_item SET quantity = quantity + ? WHERE cart_item_id = ?",
+        [quantity, existingItemId]
+      );
+      return { message: "Đã cập nhật số lượng sản phẩm trong giỏ hàng" };
+    } else {
+      // THÊM DÒNG MỚI
+      await db.query(
+        "INSERT INTO Cart_item (cart_id, product_id, quantity, customization_json, preview_image_url) VALUES (?, ?, ?, ?, ?)",
+        [cartId, product_id, quantity, customDataString, preview_image_url]
+      );
+      return { message: "Đã thêm sản phẩm mới vào giỏ hàng" };
+    }
   } catch (error) {
+    console.error("Lỗi Service AddToCart:", error);
     throw error;
   }
 };
