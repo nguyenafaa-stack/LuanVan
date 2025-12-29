@@ -2,14 +2,14 @@ import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import MugProduct from "../components/MugProduct";
+import MugProduct_V2 from "../components/MugProduct_V2";
 import ShirtProduct from "../components/ShirtProduct";
 
 const ProductDetail = () => {
   const { id } = useParams();
-  const stageRef = useRef(null);
+  const stageRef = useRef(null); // lấy quyền điều khiển stage từ component con
   const [product, setProduct] = useState(null);
   const [personalization, setPersonalization] = useState({});
-  // Thêm state để theo dõi tab đang mở
   const [isDesignMode, setIsDesignMode] = useState(false);
 
   useEffect(() => {
@@ -18,7 +18,11 @@ const ProductDetail = () => {
       setProduct(p);
 
       if (p.template_type === "mug") {
-        setPersonalization({ userName: "Tên của bạn", selectedDesignId: "d1" });
+        setPersonalization({
+          userName: "Tên của bạn",
+          selectedDesignId: "d1",
+          selectedDesignId_2: "f1",
+        });
       } else {
         setPersonalization({
           characterId: null,
@@ -38,7 +42,6 @@ const ProductDetail = () => {
     let previewUrl = null;
     let customJson = null;
 
-    // Chỉ yêu cầu Stage nếu sản phẩm có thiết kế VÀ người dùng đang ở tab thiết kế
     const shouldCaptureCanvas =
       (product.template_type === "tshirt_animal" ||
         product.template_type === "mug") &&
@@ -83,7 +86,7 @@ const ProductDetail = () => {
     setData: setPersonalization,
     stageRef,
     onAddToCart: handleAddToCart,
-    setIsDesignMode, // Truyền hàm này xuống
+    setIsDesignMode,
   };
 
   return (

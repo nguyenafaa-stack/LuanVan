@@ -3,6 +3,10 @@ import { Stage, Layer, Group, Text } from "react-konva";
 import KonvaImageLayer from "./KonvaImageLayer";
 import { BASE_URL } from "../api/axiosInstance";
 
+// Stage: vật chứa (container) chính cho toàn bộ bản vẽ
+// Layer viết sau sẽ nằm trên layer viết trước (Z-index)
+// Group: gom nhóm các đối tượng đồ họa (như ảnh và chữ) => thao tác biến đổi (xoay, kéo thả,...) lên nhiều đối tượng cùng lúc
+
 const MugProduct = ({
   product,
   data,
@@ -18,7 +22,7 @@ const MugProduct = ({
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    setIsDesignMode(tab === "design"); // Cập nhật trạng thái tab lên ProductDetail
+    setIsDesignMode(tab === "design");
   };
 
   const DESIGNS = [
@@ -27,6 +31,20 @@ const MugProduct = ({
     { id: "d3", url: `${BASE_URL}/uploads/chicken03.webp` },
   ];
 
+  const DESIGNS_FLAG = [
+    { id: "f1", url: `${BASE_URL}/uploads/hoa_ky.png` },
+    { id: "f2", url: `${BASE_URL}/uploads/phap.png` },
+    { id: "f3", url: `${BASE_URL}/uploads/viet_nam.png` },
+  ];
+
+  const mugShadowProps = data.hasShadow
+    ? {
+        shadowColor: "black",
+        shadowBlur: 20,
+        shadowOffset: { x: 15, y: 15 },
+        shadowOpacity: 0.8,
+      }
+    : {};
   return (
     <div className="container mt-5 bg-white p-4 rounded shadow-sm">
       <div className="row">
@@ -64,13 +82,34 @@ const MugProduct = ({
             ) : (
               <Stage width={400} height={400} ref={stageRef}>
                 <Layer>
+                  {/* <KonvaImageLayer
+                    url={`${BASE_URL}/uploads/Mug02.png`}
+                    x={0}
+                    y={0}
+                    width={400}
+                    height={400}
+                  /> */}
+
                   <KonvaImageLayer
                     url={`${BASE_URL}/uploads/Mug02.png`}
                     x={0}
                     y={0}
                     width={400}
                     height={400}
+                    {...mugShadowProps}
                   />
+
+                  <KonvaImageLayer
+                    url={
+                      DESIGNS_FLAG.find((d) => d.id === data.selectedDesignId_2)
+                        ?.url
+                    }
+                    x={280}
+                    y={90}
+                    width={40}
+                    height={30}
+                  />
+
                   <Group x={165} y={135}>
                     <KonvaImageLayer
                       url={
@@ -137,6 +176,49 @@ const MugProduct = ({
                   style={{ width: "65px", cursor: "pointer" }}
                 />
               ))}
+            </div>
+
+            <label className="fw-bold small mb-2 d-block text-muted mt-4">
+              CHỌN LÁ CỜ
+            </label>
+
+            <div className="d-flex gap-2">
+              {DESIGNS_FLAG.map((d) => (
+                <img
+                  key={d.id}
+                  src={d.url}
+                  onClick={() => {
+                    setData({ ...data, selectedDesignId_2: d.id });
+                    if (activeTab !== "design") handleTabChange("design");
+                  }}
+                  className={`border rounded p-1 ${
+                    data.selectedDesignId_2 === d.id
+                      ? "border-primary border-2 shadow-sm"
+                      : ""
+                  }`}
+                  style={{ width: "65px", cursor: "pointer" }}
+                />
+              ))}
+            </div>
+            <div className="p-4 border rounded bg-light mb-4 mt-4">
+              <div className="form-check form-switch">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="shadowSwitch"
+                  checked={data.hasShadow || false}
+                  onChange={(e) => {
+                    setData({ ...data, hasShadow: e.target.checked });
+                    if (activeTab !== "design") handleTabChange("design");
+                  }}
+                />
+                <label
+                  className="form-check-label fw-bold"
+                  htmlFor="shadowSwitch"
+                >
+                  HIỆU ỨNG ĐỔ BÓNG
+                </label>
+              </div>
             </div>
           </div>
           <button

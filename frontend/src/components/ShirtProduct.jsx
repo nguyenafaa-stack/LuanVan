@@ -10,7 +10,6 @@ import {
 import useImage from "use-image";
 import { BASE_URL } from "../api/axiosInstance";
 
-// --- Component con xử lý Logo (Giữ nguyên) ---
 const EditableImage = ({ shapeProps, isSelected, onSelect, onChange, url }) => {
   const shapeRef = useRef();
   const trRef = useRef();
@@ -66,7 +65,6 @@ const EditableImage = ({ shapeProps, isSelected, onSelect, onChange, url }) => {
   );
 };
 
-// --- Component MỚI: Xử lý Text có thể thay đổi kích thước ---
 const EditableText = ({ shapeProps, isSelected, onSelect, onChange }) => {
   const shapeRef = useRef();
   const trRef = useRef();
@@ -131,7 +129,6 @@ const EditableText = ({ shapeProps, isSelected, onSelect, onChange }) => {
   );
 };
 
-// --- Component ColoredShirt (Giữ nguyên) ---
 const ColoredShirt = ({ url, color }) => {
   const [img] = useImage(url, "anonymous");
   const imgRef = useRef();
@@ -149,6 +146,7 @@ const ColoredShirt = ({ url, color }) => {
       : { r: 255, g: 255, b: 255 };
   };
   const rgb = hexToRgb(color);
+
   return (
     <KonvaImage
       name="shirtBackground"
@@ -179,7 +177,6 @@ const ShirtProduct = ({
     product.images?.[0]?.image_url || product.image_url || ""
   );
 
-  // SỬA TẠI ĐÂY: Hàm xử lý chuyển Tab để thông báo cho ProductDetail
   const handleTabChange = (tabName) => {
     setActiveTab(tabName);
     if (setIsDesignMode) {
@@ -189,14 +186,19 @@ const ShirtProduct = ({
 
   const CHARACTERS = [
     {
-      id: "ctu",
-      label: "Logo CTU",
-      main: `${BASE_URL}/uploads/Logo_Dai_hoc_Can_Tho.png`,
+      id: "hoaky",
+      label: "Hoa Ky",
+      main: `${BASE_URL}/uploads/hoa_ky.png`,
     },
     {
-      id: "shirt",
-      label: "Logo Shirt",
-      main: `${BASE_URL}/uploads/logo-shirt.jpg`,
+      id: "phap",
+      label: "Phap",
+      main: `${BASE_URL}/uploads/phap.png`,
+    },
+    {
+      id: "vietnam",
+      label: "Vietnam",
+      main: `${BASE_URL}/uploads/viet_nam.png`,
     },
   ];
 
@@ -228,11 +230,11 @@ const ShirtProduct = ({
     if (clickedOnStage || clickedOnBackground) setSelectedId(null);
   };
 
-  // Tự động bật mode thiết kế khi component mount nếu tab mặc định là design
   useEffect(() => {
     if (setIsDesignMode) setIsDesignMode(activeTab === "design");
   }, []);
 
+  // giao diện
   return (
     <div className="container mt-5 bg-white p-4 rounded shadow-sm">
       <div className="row">
@@ -398,37 +400,56 @@ const ShirtProduct = ({
                 ))}
               </div>
             </div>
-
-            <div className="mb-2">
+            <div className="mb-4">
               <label className="fw-bold small mb-2 d-block text-muted text-uppercase">
-                Logo
+                Chọn Logo in
               </label>
-              <div className="d-flex gap-2">
+              <div className="d-flex gap-2 flex-wrap">
                 {CHARACTERS.map((char) => (
-                  <button
+                  <img
                     key={char.id}
-                    className={`btn btn-sm ${
+                    src={char.main} // Đường dẫn ảnh từ mảng CHARACTERS
+                    alt={char.label}
+                    className={`border rounded p-1 ${
                       data.characterId === char.id
-                        ? "btn-primary"
-                        : "btn-outline-secondary"
+                        ? "border-primary border-2 shadow-sm"
+                        : "border-light"
                     }`}
-                    onClick={() => {
-                      setData({ ...data, characterId: char.id });
-                      if (activeTab !== "design") handleTabChange("design"); // Tự động switch tab
+                    style={{
+                      width: "60px",
+                      height: "60px",
+                      cursor: "pointer",
+                      objectFit: "contain",
+                      backgroundColor: "#f8f9fa",
                     }}
-                  >
-                    {char.label}
-                  </button>
+                    onClick={() => {
+                      setData({ ...data, characterId: char.id }); // Cập nhật state thiết kế
+                      if (activeTab !== "design") handleTabChange("design"); // Tự động chuyển tab thiết kế
+                    }}
+                  />
                 ))}
-                <button
-                  className="btn btn-sm btn-outline-danger"
+
+                <div
+                  className="border rounded d-flex align-items-center justify-content-center text-danger"
+                  style={{
+                    width: "60px",
+                    height: "60px",
+                    cursor: "pointer",
+                    fontSize: "20px",
+                    backgroundColor: "#fff",
+                  }}
                   onClick={() => {
                     setData({ ...data, characterId: null });
-                    setSelectedId(null);
+                    if (typeof setSelectedId === "function")
+                      setSelectedId(null);
                   }}
+                  title="Xóa logo"
                 >
-                  Xóa
-                </button>
+                  <i className="bi bi-trash"></i>{" "}
+                  <span style={{ fontSize: "12px", fontWeight: "bold" }}>
+                    Xóa
+                  </span>
+                </div>
               </div>
             </div>
           </div>

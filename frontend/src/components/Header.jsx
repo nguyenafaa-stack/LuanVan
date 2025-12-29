@@ -15,7 +15,7 @@ const Header = () => {
     <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top shadow-sm">
       <div className="container">
         <Link className="navbar-brand fw-bold text-dark" to="/">
-          GOSSBY SHOP
+          MY GIFT SHOP
         </Link>
 
         <button

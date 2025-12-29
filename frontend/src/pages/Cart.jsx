@@ -47,12 +47,9 @@ const Cart = () => {
           </thead>
           <tbody>
             {cart.items.map((item) => {
-              // 1. Ưu tiên hiển thị ảnh thiết kế (Base64/URL preview)
-              // Nếu không có ảnh thiết kế thì mới hiển thị ảnh mặc định từ database
               const displayImage =
                 item.preview_image_url || `${BASE_URL}${item.default_image}`;
 
-              // 2. Giải mã thông tin tùy chỉnh (Màu áo, Chữ in...)
               const customData = item.customization_json;
 
               return (

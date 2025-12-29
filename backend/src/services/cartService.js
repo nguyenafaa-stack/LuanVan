@@ -8,7 +8,7 @@ const addToCart = async (
   preview_image_url
 ) => {
   try {
-    // 1. Lấy hoặc tạo Cart ID
+    // Lấy cartId
     let [carts] = await db.query(
       "SELECT cart_id FROM Cart WHERE customer_id = ?",
       [customer_id]
@@ -22,8 +22,6 @@ const addToCart = async (
           )[0].insertId
         : carts[0].cart_id;
 
-    // 2. Chuẩn hóa chuỗi JSON để so sánh chính xác
-    // Sắp xếp các key trong Object trước khi stringify giúp tránh việc cùng 1 thiết kế nhưng chuỗi khác nhau
     const customDataString =
       customization_json && Object.keys(customization_json).length > 0
         ? JSON.stringify(
@@ -31,12 +29,10 @@ const addToCart = async (
             Object.keys(customization_json).sort()
           )
         : null;
-
-    // 3. Logic kiểm tra trùng lặp để quyết định Cộng dồn hay Thêm mới
+    // Cộng số lượng nếu product đã tồn tại
     let existingItemId = null;
 
     if (customDataString) {
-      // Tìm sản phẩm có thiết kế trùng khớp hoàn toàn
       const [existingItems] = await db.query(
         "SELECT cart_item_id FROM Cart_item WHERE cart_id = ? AND product_id = ? AND customization_json = ?",
         [cartId, product_id, customDataString]
@@ -44,7 +40,6 @@ const addToCart = async (
       if (existingItems.length > 0)
         existingItemId = existingItems[0].cart_item_id;
     } else {
-      // Tìm sản phẩm mặc định (customization_json IS NULL)
       const [existingDefault] = await db.query(
         "SELECT cart_item_id FROM Cart_item WHERE cart_id = ? AND product_id = ? AND customization_json IS NULL",
         [cartId, product_id]
@@ -53,16 +48,13 @@ const addToCart = async (
         existingItemId = existingDefault[0].cart_item_id;
     }
 
-    // 4. Thực thi lệnh tương ứng
     if (existingItemId) {
-      // CỘNG DỒN SỐ LƯỢNG
       await db.query(
         "UPDATE Cart_item SET quantity = quantity + ? WHERE cart_item_id = ?",
         [quantity, existingItemId]
       );
       return { message: "Đã cập nhật số lượng sản phẩm trong giỏ hàng" };
     } else {
-      // THÊM DÒNG MỚI
       await db.query(
         "INSERT INTO Cart_item (cart_id, product_id, quantity, customization_json, preview_image_url) VALUES (?, ?, ?, ?, ?)",
         [cartId, product_id, quantity, customDataString, preview_image_url]
@@ -98,9 +90,7 @@ const getCartItems = async (customer_id) => {
 
     const [rows] = await db.query(query, [customer_id]);
 
-    // Xử lý dữ liệu trả về
     const items = rows.map((item) => {
-      // Chuyển chuỗi JSON từ DB về lại Object để Frontend dễ dùng
       let customDetails = null;
       try {
         customDetails = item.customization_json
@@ -113,7 +103,6 @@ const getCartItems = async (customer_id) => {
       return {
         ...item,
         customization_json: customDetails,
-        // Nếu có ảnh preview (thiết kế riêng) thì dùng, không thì dùng ảnh mặc định
         display_image: item.preview_image_url || item.default_image,
       };
     });
@@ -135,7 +124,6 @@ const getCartItems = async (customer_id) => {
 
 const removeItemFromCart = async (cart_item_id, customer_id) => {
   try {
-    // Kiểm tra xem item đó có thuộc về customer này không trước khi xóa để bảo mật
     const query = `
       DELETE ci FROM Cart_item ci
       JOIN Cart c ON ci.cart_id = c.cart_id
