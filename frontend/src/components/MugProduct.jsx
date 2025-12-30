@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Stage, Layer, Group, Text } from "react-konva";
 import KonvaImageLayer from "./KonvaImageLayer";
-import { BASE_URL } from "../api/axiosInstance";
+import axiosInstance, { BASE_URL } from "../api/axiosInstance";
 
 // Stage: vật chứa (container) chính cho toàn bộ bản vẽ
 // Layer viết sau sẽ nằm trên layer viết trước (Z-index)
@@ -20,31 +20,44 @@ const MugProduct = ({
     product.images?.[0]?.image_url || product.image_url || ""
   );
 
+  const [designs, setDesigns] = useState([]);
+  const [flags, setFlags] = useState([]);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const response = await axiosInstance.get(
+          `/design-option?categoryId=${product.category_id}`
+        );
+        const allOptions = response.data.data;
+
+        setDesigns(allOptions.filter((opt) => opt.option_type === "icon"));
+        setFlags(allOptions.filter((opt) => opt.option_type === "flag"));
+      } catch (error) {
+        console.error("Lỗi lấy design options:", error);
+      }
+    };
+
+    if (product.category_id) fetchOptions();
+  }, [product.category_id]);
+
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setIsDesignMode(tab === "design");
   };
 
-  const DESIGNS = [
-    { id: "d1", url: `${BASE_URL}/uploads/chicken01.webp` },
-    { id: "d2", url: `${BASE_URL}/uploads/chicken02.webp` },
-    { id: "d3", url: `${BASE_URL}/uploads/chicken03.webp` },
-  ];
+  // const DESIGNS = [
+  //   { id: "d1", url: `${BASE_URL}/uploads/chicken01.webp` },
+  //   { id: "d2", url: `${BASE_URL}/uploads/chicken02.webp` },
+  //   { id: "d3", url: `${BASE_URL}/uploads/chicken03.webp` },
+  // ];
 
-  const DESIGNS_FLAG = [
-    { id: "f1", url: `${BASE_URL}/uploads/hoa_ky.png` },
-    { id: "f2", url: `${BASE_URL}/uploads/phap.png` },
-    { id: "f3", url: `${BASE_URL}/uploads/viet_nam.png` },
-  ];
+  // const DESIGNS_FLAG = [
+  //   { id: "f1", url: `${BASE_URL}/uploads/hoa_ky.png` },
+  //   { id: "f2", url: `${BASE_URL}/uploads/phap.png` },
+  //   { id: "f3", url: `${BASE_URL}/uploads/viet_nam.png` },
+  // ];
 
-  const mugShadowProps = data.hasShadow
-    ? {
-        shadowColor: "black",
-        shadowBlur: 20,
-        shadowOffset: { x: 15, y: 15 },
-        shadowOpacity: 0.8,
-      }
-    : {};
   return (
     <div className="container mt-5 bg-white p-4 rounded shadow-sm">
       <div className="row">
@@ -82,27 +95,24 @@ const MugProduct = ({
             ) : (
               <Stage width={400} height={400} ref={stageRef}>
                 <Layer>
-                  {/* <KonvaImageLayer
-                    url={`${BASE_URL}/uploads/Mug02.png`}
-                    x={0}
-                    y={0}
-                    width={400}
-                    height={400}
-                  /> */}
-
                   <KonvaImageLayer
                     url={`${BASE_URL}/uploads/Mug02.png`}
                     x={0}
                     y={0}
                     width={400}
                     height={400}
-                    {...mugShadowProps}
                   />
 
                   <KonvaImageLayer
                     url={
-                      DESIGNS_FLAG.find((d) => d.id === data.selectedDesignId_2)
-                        ?.url
+                      flags.find((f) => f.option_id === data.selectedDesignId_2)
+                        ?.image_url
+                        ? `${BASE_URL}${
+                            flags.find(
+                              (f) => f.option_id === data.selectedDesignId_2
+                            ).image_url
+                          }`
+                        : null
                     }
                     x={280}
                     y={90}
@@ -113,7 +123,37 @@ const MugProduct = ({
                   <Group x={165} y={135}>
                     <KonvaImageLayer
                       url={
-                        DESIGNS.find((d) => d.id === data.selectedDesignId)?.url
+                        designs.find(
+                          (d) => d.option_id === data.selectedDesignId
+                        )?.image_url
+                          ? `${BASE_URL}${
+                              designs.find(
+                                (d) => d.option_id === data.selectedDesignId
+                              ).image_url
+                            }`
+                          : null
+                      }
+                      x={0}
+                      y={0}
+                      width={120}
+                      height={120}
+                    />
+                    <Text
+                      text={data.userName || ""}
+                      x={-40}
+                      y={140}
+                      width={200}
+                      align="center"
+                      fontSize={20}
+                      fontStyle="bold"
+                      fill="#333"
+                    />
+                  </Group>
+
+                  <Group x={165} y={135}>
+                    <KonvaImageLayer
+                      url={
+                        flags.find((d) => d.id === data.selectedDesignId)?.url
                       }
                       x={0}
                       y={0}
@@ -159,17 +199,17 @@ const MugProduct = ({
             <label className="fw-bold small mb-2 d-block text-muted">
               CHỌN BIỂU TƯỢNG
             </label>
-            <div className="d-flex gap-2">
-              {DESIGNS.map((d) => (
+            <div className="d-flex gap-2 flex-wrap">
+              {designs.map((d) => (
                 <img
-                  key={d.id}
-                  src={d.url}
+                  key={d.option_id}
+                  src={`${BASE_URL}${d.image_url}`}
                   onClick={() => {
-                    setData({ ...data, selectedDesignId: d.id });
+                    setData({ ...data, selectedDesignId: d.option_id });
                     if (activeTab !== "design") handleTabChange("design");
                   }}
                   className={`border rounded p-1 ${
-                    data.selectedDesignId === d.id
+                    data.selectedDesignId === d.option_id
                       ? "border-primary border-2 shadow-sm"
                       : ""
                   }`}
@@ -181,44 +221,23 @@ const MugProduct = ({
             <label className="fw-bold small mb-2 d-block text-muted mt-4">
               CHỌN LÁ CỜ
             </label>
-
-            <div className="d-flex gap-2">
-              {DESIGNS_FLAG.map((d) => (
+            <div className="d-flex gap-2 flex-wrap">
+              {flags.map((f) => (
                 <img
-                  key={d.id}
-                  src={d.url}
+                  key={f.option_id}
+                  src={`${BASE_URL}${f.image_url}`}
                   onClick={() => {
-                    setData({ ...data, selectedDesignId_2: d.id });
+                    setData({ ...data, selectedDesignId_2: f.option_id });
                     if (activeTab !== "design") handleTabChange("design");
                   }}
                   className={`border rounded p-1 ${
-                    data.selectedDesignId_2 === d.id
+                    data.selectedDesignId_2 === f.option_id
                       ? "border-primary border-2 shadow-sm"
                       : ""
                   }`}
                   style={{ width: "65px", cursor: "pointer" }}
                 />
               ))}
-            </div>
-            <div className="p-4 border rounded bg-light mb-4 mt-4">
-              <div className="form-check form-switch">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  id="shadowSwitch"
-                  checked={data.hasShadow || false}
-                  onChange={(e) => {
-                    setData({ ...data, hasShadow: e.target.checked });
-                    if (activeTab !== "design") handleTabChange("design");
-                  }}
-                />
-                <label
-                  className="form-check-label fw-bold"
-                  htmlFor="shadowSwitch"
-                >
-                  HIỆU ỨNG ĐỔ BÓNG
-                </label>
-              </div>
             </div>
           </div>
           <button

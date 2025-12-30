@@ -7,6 +7,7 @@ const db = require("./src/configs/database.js");
 const productRoute = require("./src/routers/productRoute.js");
 const cartRoute = require("./src/routers/cartRoute.js");
 const authRoute = require("./src/routers/authRoute.js");
+const designOptionRoute = require("./src/routers/designOptionRoute.js");
 
 dotenv.config();
 
@@ -21,7 +22,7 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 app.use(
   cors({
-    origin: "http://localhost:5173", // Địa chỉ Vite của bạn
+    origin: "http://localhost:5173",
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
@@ -36,6 +37,7 @@ app.get("/", (req, res) => {
 app.use("/api/products", productRoute);
 app.use("/api/cart", cartRoute);
 app.use("/api/auth", authRoute);
+app.use("/api/design-option", designOptionRoute);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

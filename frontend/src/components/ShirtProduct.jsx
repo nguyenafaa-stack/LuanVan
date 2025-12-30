@@ -8,7 +8,7 @@ import {
   Image as KonvaImage,
 } from "react-konva";
 import useImage from "use-image";
-import { BASE_URL } from "../api/axiosInstance";
+import axiosInstance, { BASE_URL } from "../api/axiosInstance";
 
 const EditableImage = ({ shapeProps, isSelected, onSelect, onChange, url }) => {
   const shapeRef = useRef();
@@ -96,7 +96,6 @@ const EditableText = ({ shapeProps, isSelected, onSelect, onChange }) => {
         onTransformEnd={() => {
           const node = shapeRef.current;
           const scaleX = node.scaleX();
-          // Với Text, thay vì đổi width/height, ta đổi fontSize để chữ không bị méo (pixelate)
           const newFontSize = Math.max(10, node.fontSize() * scaleX);
 
           node.scaleX(1);
@@ -171,7 +170,7 @@ const ShirtProduct = ({
   onAddToCart,
   setIsDesignMode,
 }) => {
-  const [activeTab, setActiveTab] = useState("design");
+  const [activeTab, setActiveTab] = useState("real");
   const [selectedId, setSelectedId] = useState(null);
   const [mainImage, setMainImage] = useState(
     product.images?.[0]?.image_url || product.image_url || ""
@@ -183,46 +182,52 @@ const ShirtProduct = ({
       setIsDesignMode(tabName === "design");
     }
   };
+  const [colorShirt, setColorShirt] = useState([]);
+  const [colorText, setColorText] = useState([]);
+  const [flag, setFlag] = useState([]);
 
-  const CHARACTERS = [
-    {
-      id: "hoaky",
-      label: "Hoa Ky",
-      main: `${BASE_URL}/uploads/hoa_ky.png`,
-    },
-    {
-      id: "phap",
-      label: "Phap",
-      main: `${BASE_URL}/uploads/phap.png`,
-    },
-    {
-      id: "vietnam",
-      label: "Vietnam",
-      main: `${BASE_URL}/uploads/viet_nam.png`,
-    },
-  ];
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const response = await axiosInstance.get(
+          `/design-option?categoryId=${product.category_id}`
+        );
 
-  const SHIRT_COLORS = [
-    { id: "white", color: "#ffffff", label: "Trắng" },
-    { id: "blue", color: "#3498db", label: "Xanh" },
-    { id: "red", color: "#e74c3c", label: "Đỏ" },
-    { id: "black", color: "#2c3e50", label: "Than" },
-    { id: "yellow", color: "#f1c40f", label: "Vàng" },
-  ];
+        const allOptions = response.data.data || [];
 
-  const TEXT_COLORS = [
-    { name: "Đen", hex: "#000000" },
-    { name: "Trắng", hex: "#ffffff" },
-    { name: "Đỏ", hex: "#ff0000" },
-    { name: "Vàng", hex: "#ffd700" },
-  ];
+        setColorShirt(
+          allOptions.filter((opt) => opt.option_type === "color_shirt")
+        );
+        setColorText(
+          allOptions.filter((opt) => opt.option_type === "color_text")
+        );
+        setFlag(allOptions.filter((opt) => opt.option_type === "flag"));
+      } catch (error) {
+        console.error("Lỗi lấy design options cho Áo:", error);
+      }
+    };
+
+    if (product?.category_id) {
+      fetchOptions();
+    }
+  }, [product?.category_id]);
 
   const shirtBaseUrl = `${BASE_URL}/uploads/shirt01.png`;
   const selectedChar = data.characterId
-    ? CHARACTERS.find((c) => c.id === data.characterId)
+    ? flag.find((f) => f.option_id === data.characterId)
     : null;
-  const currentColor =
-    SHIRT_COLORS.find((c) => c.id === data.shirtColorId)?.color || "#ffffff";
+
+  const currentColorOption = colorShirt.find(
+    (c) => c.option_id === data.shirtColorId
+  );
+
+  const extraData = currentColorOption
+    ? typeof currentColorOption.extra_data === "string"
+      ? JSON.parse(currentColorOption.extra_data)
+      : currentColorOption.extra_data
+    : null;
+
+  const currentColor = extraData?.hex || "#ffffff";
 
   const handleStageMouseDown = (e) => {
     const clickedOnStage = e.target === e.target.getStage();
@@ -272,9 +277,11 @@ const ShirtProduct = ({
               >
                 <Layer>
                   <ColoredShirt url={shirtBaseUrl} color={currentColor} />
+                  {/* Trong phần Stage -> Layer */}
                   {selectedChar && (
                     <EditableImage
-                      url={selectedChar.main}
+                      // Nối BASE_URL với image_url từ database
+                      url={`${BASE_URL}${selectedChar.image_url}`}
                       isSelected={selectedId === "logo"}
                       onSelect={() => setSelectedId("logo")}
                       shapeProps={{
@@ -341,22 +348,35 @@ const ShirtProduct = ({
               <label className="fw-bold small mb-2 d-block text-muted">
                 MÀU ÁO
               </label>
-              <div className="d-flex gap-3">
-                {SHIRT_COLORS.map((c) => (
-                  <div
-                    key={c.id}
-                    onClick={() => setData({ ...data, shirtColorId: c.id })}
-                    className={`rounded-circle border border-2 ${
-                      data.shirtColorId === c.id ? "border-primary" : ""
-                    }`}
-                    style={{
-                      backgroundColor: c.color,
-                      width: "30px",
-                      height: "30px",
-                      cursor: "pointer",
-                    }}
-                  />
-                ))}
+              <div className="d-flex gap-3 flex-wrap">
+                {colorShirt.map((c) => {
+                  const extraData =
+                    typeof c.extra_data === "string"
+                      ? JSON.parse(c.extra_data)
+                      : c.extra_data;
+
+                  const colorHex = extraData?.hex || "#ffffff";
+
+                  return (
+                    <div
+                      key={c.option_id}
+                      onClick={() =>
+                        setData({ ...data, shirtColorId: c.option_id })
+                      }
+                      className={`rounded-circle border border-2 ${
+                        data.shirtColorId === c.option_id
+                          ? "border-primary shadow-sm"
+                          : ""
+                      }`}
+                      style={{
+                        backgroundColor: colorHex,
+                        width: "30px",
+                        height: "30px",
+                        cursor: "pointer",
+                      }}
+                    />
+                  );
+                })}
               </div>
             </div>
 
@@ -380,24 +400,33 @@ const ShirtProduct = ({
               <label className="fw-bold small mb-2 d-block text-muted text-uppercase">
                 Màu chữ
               </label>
-              <div className="d-flex gap-2 flex-wrap">
-                {TEXT_COLORS.map((tc) => (
-                  <div
-                    key={tc.hex}
-                    onClick={() => setData({ ...data, textColor: tc.hex })}
-                    className={`rounded-circle border border-2 ${
-                      data.textColor === tc.hex
-                        ? "border-dark shadow-sm"
-                        : "border-light"
-                    }`}
-                    style={{
-                      backgroundColor: tc.hex,
-                      width: "28px",
-                      height: "28px",
-                      cursor: "pointer",
-                    }}
-                  />
-                ))}
+              <div className="d-flex gap-3 flex-wrap">
+                {colorText.map((tc) => {
+                  const extraData =
+                    typeof tc.extra_data === "string"
+                      ? JSON.parse(tc.extra_data)
+                      : tc.extra_data;
+
+                  const textHex = extraData?.hex || "#000000";
+
+                  return (
+                    <div
+                      key={tc.option_id}
+                      onClick={() => setData({ ...data, textColor: textHex })}
+                      className={`rounded-circle border border-2 ${
+                        data.textColor === textHex
+                          ? "border-dark shadow-sm"
+                          : "border-light"
+                      }`}
+                      style={{
+                        backgroundColor: textHex,
+                        width: "28px",
+                        height: "28px",
+                        cursor: "pointer",
+                      }}
+                    />
+                  );
+                })}
               </div>
             </div>
             <div className="mb-4">
@@ -405,13 +434,13 @@ const ShirtProduct = ({
                 Chọn Logo in
               </label>
               <div className="d-flex gap-2 flex-wrap">
-                {CHARACTERS.map((char) => (
+                {flag.map((char) => (
                   <img
-                    key={char.id}
-                    src={char.main} // Đường dẫn ảnh từ mảng CHARACTERS
-                    alt={char.label}
+                    key={char.option_id}
+                    src={`${BASE_URL}${char.image_url}`}
+                    alt={char.option_name}
                     className={`border rounded p-1 ${
-                      data.characterId === char.id
+                      data.characterId === char.option_id
                         ? "border-primary border-2 shadow-sm"
                         : "border-light"
                     }`}
@@ -423,30 +452,27 @@ const ShirtProduct = ({
                       backgroundColor: "#f8f9fa",
                     }}
                     onClick={() => {
-                      setData({ ...data, characterId: char.id }); // Cập nhật state thiết kế
-                      if (activeTab !== "design") handleTabChange("design"); // Tự động chuyển tab thiết kế
+                      setData({ ...data, characterId: char.option_id });
+                      if (activeTab !== "design") handleTabChange("design");
                     }}
                   />
                 ))}
 
                 <div
-                  className="border rounded d-flex align-items-center justify-content-center text-danger"
+                  className="border rounded d-flex flex-column align-items-center justify-content-center text-danger"
                   style={{
                     width: "60px",
                     height: "60px",
                     cursor: "pointer",
-                    fontSize: "20px",
                     backgroundColor: "#fff",
                   }}
                   onClick={() => {
                     setData({ ...data, characterId: null });
-                    if (typeof setSelectedId === "function")
-                      setSelectedId(null);
                   }}
                   title="Xóa logo"
                 >
-                  <i className="bi bi-trash"></i>{" "}
-                  <span style={{ fontSize: "12px", fontWeight: "bold" }}>
+                  <i className="bi bi-trash"></i>
+                  <span style={{ fontSize: "10px", fontWeight: "bold" }}>
                     Xóa
                   </span>
                 </div>

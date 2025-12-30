@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import MugProduct from "../components/MugProduct";
-import MugProduct_V2 from "../components/MugProduct_V2";
 import ShirtProduct from "../components/ShirtProduct";
 
 const ProductDetail = () => {
@@ -43,8 +42,7 @@ const ProductDetail = () => {
     let customJson = null;
 
     const shouldCaptureCanvas =
-      (product.template_type === "tshirt_animal" ||
-        product.template_type === "mug") &&
+      (product.template_type === "shirt" || product.template_type === "mug") &&
       isDesignMode;
 
     if (shouldCaptureCanvas) {
@@ -53,8 +51,7 @@ const ProductDetail = () => {
         return;
       }
       previewUrl = stageRef.current.toDataURL({
-        mimeType: "image/jpeg",
-        quality: 0.7,
+        mimeType: "image/png",
       });
       customJson = personalization;
     }
