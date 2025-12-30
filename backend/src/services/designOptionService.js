@@ -10,11 +10,10 @@ const getOptionsByCategoryId = async (categoryId) => {
 };
 
 const createOption = async (data) => {
-  const { template_type, option_type, option_name, image_url, extra_data } =
-    data;
-  const sql = `INSERT INTO Design_Option (template_type, option_type, option_name, image_url, extra_data) VALUES (?, ?, ?, ?, ?)`;
+  const { categoryId, option_type, option_name, image_url, extra_data } = data;
+  const sql = `INSERT INTO Design_Option (category_id, option_type, option_name, image_url, extra_data) VALUES (?, ?, ?, ?, ?)`;
   const [result] = await db.query(sql, [
-    template_type,
+    categoryId,
     option_type,
     option_name,
     image_url,

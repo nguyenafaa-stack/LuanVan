@@ -41,7 +41,35 @@ const getProductById = async (req, res) => {
   }
 };
 
+const addProduct = async (req, res) => {
+  try {
+    const { product_name, category_id, price, images, ...rest } = req.body;
+
+    if (!product_name || !category_id || !price) {
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu thông tin sản phẩm bắt buộc",
+      });
+    }
+
+    const productId = await productService.createProduct(req.body, images);
+
+    res.status(201).json({
+      success: true,
+      message: "Thêm sản phẩm thành công",
+      productId: productId,
+    });
+  } catch (error) {
+    console.error("Error adding product:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi hệ thống khi thêm sản phẩm",
+    });
+  }
+};
+
 module.exports = {
   getProducts,
   getProductById,
+  addProduct,
 };

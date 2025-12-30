@@ -212,7 +212,7 @@ const ShirtProduct = ({
     }
   }, [product?.category_id]);
 
-  const shirtBaseUrl = `${BASE_URL}/uploads/shirt01.png`;
+  const shirtBaseUrl = `${BASE_URL}/uploads/shirt.jpg`;
   const selectedChar = data.characterId
     ? flag.find((f) => f.option_id === data.characterId)
     : null;
@@ -390,7 +390,7 @@ const ShirtProduct = ({
                 value={data.shirtText || ""}
                 onChange={(e) => {
                   setData({ ...data, shirtText: e.target.value });
-                  if (activeTab !== "design") handleTabChange("design"); // Tự động switch tab
+                  if (activeTab !== "design") handleTabChange("design");
                 }}
                 placeholder="Nhập chữ..."
               />

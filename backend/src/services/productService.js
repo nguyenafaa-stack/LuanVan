@@ -47,7 +47,58 @@ const getProductDetail = async (id) => {
   }
 };
 
+const createProduct = async (productData, images) => {
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const {
+      product_name,
+      category_id,
+      price,
+      description,
+      stock_quantity,
+      template_type,
+    } = productData;
+
+    const productSql = `
+      INSERT INTO Product (product_name, category_id, price, description, stock_quantity, template_type) 
+      VALUES (?, ?, ?, ?, ?, ?)
+    `;
+    const [productResult] = await connection.query(productSql, [
+      product_name,
+      category_id,
+      price,
+      description,
+      stock_quantity,
+      template_type,
+    ]);
+
+    const productId = productResult.insertId;
+
+    if (images && images.length > 0) {
+      const imageSql = `INSERT INTO Image (product_id, image_url, is_primary, alt_text) VALUES ?`;
+      const imageValues = images.map((img) => [
+        productId,
+        img.image_url,
+        img.is_primary || 0,
+        img.alt_text || product_name,
+      ]);
+      await connection.query(imageSql, [imageValues]);
+    }
+
+    await connection.commit();
+    return productId;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+};
+
 module.exports = {
   getAllProducts,
   getProductDetail,
+  createProduct,
 };

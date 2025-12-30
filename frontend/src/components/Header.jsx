@@ -12,14 +12,19 @@ const Header = () => {
   };
 
   return (
-    <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top shadow-sm">
+    <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom sticky-top shadow-sm py-3">
       <div className="container">
-        <Link className="navbar-brand fw-bold text-dark" to="/">
-          MY GIFT SHOP
+        {/* Brand logo với font-weight mạnh hơn để cân bằng với Hero Text */}
+        <Link
+          className="navbar-brand fw-bold text-dark fs-4"
+          to="/"
+          style={{ letterSpacing: "1px" }}
+        >
+          MY<span className="text-warning">GIFT</span>SHOP
         </Link>
 
         <button
-          className="navbar-toggler"
+          className="navbar-toggler border-0"
           type="button"
           data-bs-toggle="collapse"
           data-bs-target="#navbarNav"
@@ -28,14 +33,25 @@ const Header = () => {
         </button>
 
         <div className="collapse navbar-collapse" id="navbarNav">
-          <ul className="navbar-nav ms-auto align-items-center">
-            <li className="nav-item">
+          {/* Nav links với khoảng cách rộng hơn, font nhẹ nhàng hơn */}
+          <ul className="navbar-nav ms-auto align-items-center fw-medium">
+            <li className="nav-item px-2">
               <Link className="nav-link" to="/">
                 Sản phẩm
               </Link>
             </li>
-            <li className="nav-item">
-              <Link className="nav-link" to="/cart">
+            <li className="nav-item px-2">
+              <Link className="nav-link" to="/about">
+                Giới thiệu
+              </Link>
+            </li>
+            <li className="nav-item px-2">
+              <Link className="nav-link" to="/contact">
+                Liên hệ
+              </Link>
+            </li>
+            <li className="nav-item px-2">
+              <Link className="nav-link position-relative" to="/cart">
                 Giỏ hàng <i className="bi bi-cart3"></i>
               </Link>
             </li>
@@ -43,42 +59,48 @@ const Header = () => {
             {token ? (
               <li className="nav-item dropdown ms-lg-3">
                 <a
-                  className="nav-link dropdown-toggle fw-bold text-primary"
+                  className="nav-link dropdown-toggle fw-bold text-warning"
                   href="#"
                   id="userDropdown"
                   role="button"
                   data-bs-toggle="dropdown"
                   aria-expanded="false"
                 >
-                  Hi, {user?.full_name}
+                  <i className="bi bi-person-circle me-1"></i> {user?.full_name}
                 </a>
                 <ul
-                  className="dropdown-menu dropdown-menu-end shadow-sm"
+                  className="dropdown-menu dropdown-menu-end border-0 shadow"
                   aria-labelledby="userDropdown"
                 >
                   <li>
-                    <button className="dropdown-item" onClick={handleLogout}>
+                    <button
+                      className="dropdown-item py-2"
+                      onClick={handleLogout}
+                    >
                       Đăng xuất
                     </button>
                   </li>
                 </ul>
               </li>
             ) : (
-              <>
-                <li className="nav-item ms-lg-3">
+              <div className="d-flex ms-lg-4 gap-2">
+                <li className="nav-item">
                   <Link
-                    className="btn btn-outline-dark btn-sm me-2"
+                    className="btn btn-outline-dark px-4 rounded-pill border-2 fw-bold btn-sm"
                     to="/login"
                   >
                     Đăng nhập
                   </Link>
                 </li>
                 <li className="nav-item">
-                  <Link className="btn btn-dark btn-sm" to="/register">
+                  <Link
+                    className="btn btn-warning px-4 rounded-pill fw-bold btn-sm shadow-sm"
+                    to="/register"
+                  >
                     Đăng ký
                   </Link>
                 </li>
-              </>
+              </div>
             )}
           </ul>
         </div>

@@ -1,7 +1,8 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
-import ProductList from "./pages/ProductList";
+import Footer from "./components/Footer";
+import Home from "./pages/HomePage"; // Import trang Home mới
 import ProductDetail from "./pages/ProductDetail";
 import Cart from "./pages/Cart";
 import Login from "./pages/Login";
@@ -11,18 +12,42 @@ function App() {
   return (
     <Router>
       <div className="bg-light min-vh-100">
-        {/* Header hiển thị ở tất cả các trang */}
         <Header />
 
-        <div className="container py-4">
+        <div className="content-wrapper">
           <Routes>
-            <Route path="/" element={<ProductList />} />
+            <Route path="/" element={<Home />} />
+
             <Route path="/product/:id" element={<ProductDetail />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+
+            <Route
+              path="/cart"
+              element={
+                <div className="container py-4">
+                  <Cart />
+                </div>
+              }
+            />
+            <Route
+              path="/login"
+              element={
+                <div className="container py-4">
+                  <Login />
+                </div>
+              }
+            />
+            <Route
+              path="/register"
+              element={
+                <div className="container py-4">
+                  <Register />
+                </div>
+              }
+            />
           </Routes>
         </div>
+
+        <Footer />
       </div>
     </Router>
   );

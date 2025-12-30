@@ -5,7 +5,7 @@ const {
   getCart,
   deleteCartItem,
 } = require("../controllers/cartController.js");
-const verifyToken = require("../middlewares/auth");
+const { verifyToken } = require("../middlewares/auth");
 
 router.post("/add", verifyToken, postToCart);
 router.get("/", verifyToken, getCart);

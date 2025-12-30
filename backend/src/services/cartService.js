@@ -8,7 +8,6 @@ const addToCart = async (
   preview_image_url
 ) => {
   try {
-    // Lấy cartId
     let [carts] = await db.query(
       "SELECT cart_id FROM Cart WHERE customer_id = ?",
       [customer_id]
@@ -29,7 +28,7 @@ const addToCart = async (
             Object.keys(customization_json).sort()
           )
         : null;
-    // Cộng số lượng nếu product đã tồn tại
+
     let existingItemId = null;
 
     if (customDataString) {

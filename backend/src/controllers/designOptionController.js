@@ -21,7 +21,16 @@ const getOptions = async (req, res) => {
 
 const addOption = async (req, res) => {
   try {
-    const optionId = await designOptionService.createOption(req.body);
+    const { categoryId } = req.query;
+    const { option_type, option_name, image_url, extra_data } = req.body;
+    const optionData = {
+      categoryId,
+      option_type,
+      option_name,
+      image_url,
+      extra_data,
+    };
+    const optionId = await designOptionService.createOption(optionData);
     res.status(201).json({ success: true, optionId });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

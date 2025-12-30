@@ -9,7 +9,7 @@ const register = async (userData) => {
   const { full_name, email, password, phone } = userData;
 
   const [existing] = await db.query(
-    "SELECT customer_id FROM Customer WHERE email = ?",
+    "SELECT user_id FROM User WHERE email = ?",
     [email]
   );
 
@@ -17,14 +17,14 @@ const register = async (userData) => {
   const password_hash = await bcrypt.hash(password, saltRounds);
 
   const [result] = await db.query(
-    "INSERT INTO Customer (full_name, email, password_hash, phone) VALUES (?, ?, ?, ?)",
+    "INSERT INTO User (full_name, email, password_hash, phone) VALUES (?, ?, ?, ?)",
     [full_name, email, password_hash, phone]
   );
   return result.insertId;
 };
 
 const login = async (email, password) => {
-  const [customers] = await db.query("SELECT * FROM Customer WHERE email = ?", [
+  const [customers] = await db.query("SELECT * FROM User WHERE email = ?", [
     email,
   ]);
   if (customers.length === 0)
@@ -36,7 +36,11 @@ const login = async (email, password) => {
   if (!isMatch) throw new Error("Email hoặc mật khẩu không chính xác");
 
   const token = jwt.sign(
-    { customer_id: customer.customer_id, email: customer.email },
+    {
+      customer_id: customer.user_id,
+      email: customer.email,
+      role: customer.role,
+    },
     process.env.JWT_SECRET,
     { expiresIn: "1d" }
   );
@@ -44,9 +48,10 @@ const login = async (email, password) => {
   return {
     token,
     user: {
-      id: customer.customer_id,
+      id: customer.user_id,
       full_name: customer.full_name,
       email: customer.email,
+      role: customer.role,
     },
   };
 };
