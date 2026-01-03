@@ -1,14 +1,15 @@
-const express = require("express");
-const router = express.Router();
-const {
+import express from "express";
+import {
   postToCart,
   getCart,
   deleteCartItem,
-} = require("../controllers/cartController.js");
-const { verifyToken } = require("../middlewares/auth");
+} from "../controllers/cartController.js";
+import { verifyToken } from "../middlewares/auth.js";
 
-router.post("/add", verifyToken, postToCart);
+const router = express.Router();
+
 router.get("/", verifyToken, getCart);
+router.post("/", verifyToken, postToCart);
 router.delete("/:id", verifyToken, deleteCartItem);
 
-module.exports = router;
+export default router;

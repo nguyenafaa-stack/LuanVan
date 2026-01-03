@@ -1,138 +1,104 @@
-const db = require("../configs/database.js");
+import db from "../configs/database.js";
 
-const addToCart = async (
-  customer_id,
-  product_id,
-  quantity,
-  customization_json,
-  preview_image_url
-) => {
-  try {
-    let [carts] = await db.query(
-      "SELECT cart_id FROM Cart WHERE customer_id = ?",
-      [customer_id]
-    );
-    let cartId =
-      carts.length === 0
-        ? (
-            await db.query("INSERT INTO Cart (customer_id) VALUES (?)", [
-              customer_id,
-            ])
-          )[0].insertId
-        : carts[0].cart_id;
+export const addToCartService = async (cartData) => {
+  const { user_id, variant_id, quantity, design_json, preview_image_url } =
+    cartData;
 
-    const customDataString =
-      customization_json && Object.keys(customization_json).length > 0
-        ? JSON.stringify(
-            customization_json,
-            Object.keys(customization_json).sort()
-          )
-        : null;
+  let cart = await db("carts").where({ user_id }).first();
+  let cart_id;
 
-    let existingItemId = null;
+  if (!cart) {
+    const [id] = await db("carts").insert({ user_id });
+    cart_id = id;
+  } else {
+    cart_id = cart.cart_id;
+  }
 
-    if (customDataString) {
-      const [existingItems] = await db.query(
-        "SELECT cart_item_id FROM Cart_item WHERE cart_id = ? AND product_id = ? AND customization_json = ?",
-        [cartId, product_id, customDataString]
-      );
-      if (existingItems.length > 0)
-        existingItemId = existingItems[0].cart_item_id;
-    } else {
-      const [existingDefault] = await db.query(
-        "SELECT cart_item_id FROM Cart_item WHERE cart_id = ? AND product_id = ? AND customization_json IS NULL",
-        [cartId, product_id]
-      );
-      if (existingDefault.length > 0)
-        existingItemId = existingDefault[0].cart_item_id;
-    }
+  const designString =
+    design_json && Object.keys(design_json).length > 0
+      ? JSON.stringify(design_json, Object.keys(design_json).sort())
+      : null;
 
-    if (existingItemId) {
-      await db.query(
-        "UPDATE Cart_item SET quantity = quantity + ? WHERE cart_item_id = ?",
-        [quantity, existingItemId]
-      );
-      return { message: "Đã cập nhật số lượng sản phẩm trong giỏ hàng" };
-    } else {
-      await db.query(
-        "INSERT INTO Cart_item (cart_id, product_id, quantity, customization_json, preview_image_url) VALUES (?, ?, ?, ?, ?)",
-        [cartId, product_id, quantity, customDataString, preview_image_url]
-      );
-      return { message: "Đã thêm sản phẩm mới vào giỏ hàng" };
-    }
-  } catch (error) {
-    console.error("Lỗi Service AddToCart:", error);
-    throw error;
+  const existingItem = await db("cart_items")
+    .where({ cart_id, variant_id, design_json: designString })
+    .first();
+
+  if (existingItem) {
+    await db("cart_items")
+      .where({ cart_item_id: existingItem.cart_item_id })
+      .update({
+        quantity: existingItem.quantity + quantity,
+        preview_image_url: preview_image_url || existingItem.preview_image_url,
+      });
+    return { message: "Đã cập nhật số lượng trong giỏ hàng" };
+  } else {
+    await db("cart_items").insert({
+      cart_id,
+      variant_id,
+      quantity,
+      design_json: designString,
+      preview_image_url,
+    });
+    return { message: "Đã thêm vào giỏ hàng thành công" };
   }
 };
 
-const getCartItems = async (customer_id) => {
-  try {
-    const query = `
-      SELECT 
-        ci.cart_item_id,
-        p.product_id,
-        p.product_name,
-        p.price AS unit_price,
-        ci.quantity,
-        ci.customization_json,
-        ci.preview_image_url,
-        (p.price * ci.quantity) AS subtotal,
-        i.image_url AS default_image
-      FROM Cart c
-      JOIN Cart_item ci ON c.cart_id = ci.cart_id
-      JOIN Product p ON ci.product_id = p.product_id
-      LEFT JOIN Image i ON p.product_id = i.product_id AND i.is_primary = TRUE
-      WHERE c.customer_id = ?
-      ORDER BY ci.added_at DESC
-    `;
+export const getCartItemsService = async (user_id) => {
+  const query = `
+    SELECT 
+      ci.cart_item_id,
+      ci.quantity,
+      ci.design_json,
+      ci.preview_image_url,
+      v.variant_id,
+      v.sku,
+      p.name as product_name,
+      pri.sale_price,
+      pri.base_price,
+      (COALESCE(pri.sale_price, pri.base_price) * ci.quantity) as subtotal
+    FROM carts c
+    JOIN cart_items ci ON c.cart_id = ci.cart_id
+    JOIN variants v ON ci.variant_id = v.variant_id
+    JOIN products p ON v.product_id = p.product_id
+    JOIN prices pri ON v.variant_id = pri.variant_id
+    WHERE c.user_id = ?
+    ORDER BY ci.created_at DESC
+  `;
 
-    const [rows] = await db.query(query, [customer_id]);
+  const [rows] = await db.raw(query, [user_id]);
 
-    const items = rows.map((item) => {
-      let customDetails = null;
+  const items = rows.map((item) => {
+    let parsedDesign = null;
+    if (item.design_json) {
       try {
-        customDetails = item.customization_json
-          ? JSON.parse(item.customization_json)
-          : null;
+        parsedDesign = JSON.parse(item.design_json);
       } catch (e) {
-        customDetails = item.customization_json;
+        parsedDesign = item.design_json;
       }
-
-      return {
-        ...item,
-        customization_json: customDetails,
-        display_image: item.preview_image_url || item.default_image,
-      };
-    });
-
-    const totalAmount = items.reduce(
-      (sum, item) => sum + Number(item.subtotal),
-      0
-    );
+    }
 
     return {
-      items,
-      totalAmount,
+      ...item,
+      design_json: parsedDesign,
+      price_to_pay: item.sale_price || item.base_price,
     };
-  } catch (error) {
-    console.error("Lỗi Get Cart Items:", error);
-    throw error;
-  }
+  });
+
+  const totalAmount = items.reduce(
+    (sum, item) => sum + Number(item.subtotal),
+    0
+  );
+
+  return { items, totalAmount };
 };
 
-const removeItemFromCart = async (cart_item_id, customer_id) => {
-  try {
-    const query = `
-      DELETE ci FROM Cart_item ci
-      JOIN Cart c ON ci.cart_id = c.cart_id
-      WHERE ci.cart_item_id = ? AND c.customer_id = ?
-    `;
-    const [result] = await db.query(query, [cart_item_id, customer_id]);
-    return result.affectedRows > 0;
-  } catch (error) {
-    throw error;
-  }
-};
+export const removeItemFromCartService = async (cart_item_id, user_id) => {
+  const deleted = await db("cart_items")
+    .whereIn("cart_id", function () {
+      this.select("cart_id").from("carts").where({ user_id });
+    })
+    .andWhere({ cart_item_id })
+    .del();
 
-module.exports = { addToCart, getCartItems, removeItemFromCart };
+  return deleted > 0;
+};

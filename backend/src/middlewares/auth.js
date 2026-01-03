@@ -1,14 +1,17 @@
-const jwt = require("jsonwebtoken");
-require("dotenv").config();
+import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
 
-const verifyToken = (req, res, next) => {
+dotenv.config();
+
+export const verifyToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
   if (!token) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Bạn chưa đăng nhập!" });
+    return res.status(401).json({
+      success: false,
+      message: "Bạn chưa đăng nhập hoặc thiếu Token!",
+    });
   }
 
   try {
@@ -19,17 +22,17 @@ const verifyToken = (req, res, next) => {
   } catch (error) {
     return res
       .status(403)
-      .json({ success: false, message: "Token không hợp lệ hoặc hết hạn!" });
+      .json({ success: false, message: "Token không hợp lệ hoặc đã hết hạn!" });
   }
 };
 
-const isAdmin = (req, res, next) => {
+export const isAdmin = (req, res, next) => {
   if (req.user && req.user.role === "admin") {
     next();
   } else {
-    res
-      .status(403)
-      .json({ message: "Quyền truy cập bị từ chối. Cần quyền Admin." });
+    res.status(403).json({
+      success: false,
+      message: "Quyền truy cập bị từ chối. Bạn không phải là Quản trị viên!",
+    });
   }
 };
-module.exports = { verifyToken, isAdmin };

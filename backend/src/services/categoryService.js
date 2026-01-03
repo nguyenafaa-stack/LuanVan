@@ -1,24 +1,39 @@
-const db = require("../configs/database.js");
+import db from "../configs/database.js";
 
-const getAllCategory = async () => {
-  try {
-    const [categorys] = await db.query("SELECT * FROM Category");
-    return categorys;
-  } catch (error) {
-    throw error;
-  }
+const createSlug = (str) => {
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đĐ]/g, "d")
+    .replace(/([^0-9a-z-\s])/g, "")
+    .replace(/(\s+)/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
 };
 
-const addCategory = async (category_name, description) => {
-  try {
-    await db.query(
-      "INSERT INTO Category (category_name, description) VALUES (?, ?)",
-      [category_name, description]
-    );
-    return { message: "Đã thêm danh mục mới thành công" };
-  } catch (error) {
-    throw error;
+export const createCategoryService = async (categoryData) => {
+  const { name, description, status } = categoryData;
+
+  const slug = createSlug(name);
+
+  const existing = await db("categorys").where({ slug }).first();
+  if (existing) {
+    throw new Error("Danh mục này đã tồn tại (trùng slug)");
   }
+  const [insertId] = await db("categorys").insert({
+    name,
+    slug,
+    description,
+    status: status || "active",
+  });
+
+  return {
+    id: insertId,
+    message: "Đã thêm danh mục mới thành công",
+  };
 };
 
-module.exports = { getAllCategory, addCategory };
+export const getAllCategoriesService = async () => {
+  return await db("categorys").select("*").orderBy("name", "asc");
+};

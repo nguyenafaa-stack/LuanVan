@@ -1,8 +1,8 @@
-const customerService = require("../services/authService.js");
+import authService from "../services/authService.js";
 
-const handleRegister = async (req, res) => {
+export const register = async (req, res) => {
   try {
-    const userId = await customerService.register(req.body);
+    const userId = await authService.register(req.body);
     res
       .status(201)
       .json({ success: true, message: "Đăng ký thành công", userId });
@@ -11,10 +11,10 @@ const handleRegister = async (req, res) => {
   }
 };
 
-const handleLogin = async (req, res) => {
+export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const data = await customerService.login(email, password);
+    const data = await authService.login(email, password);
     res
       .status(200)
       .json({ success: true, message: "Đăng nhập thành công", ...data });
@@ -22,5 +22,3 @@ const handleLogin = async (req, res) => {
     res.status(401).json({ success: false, message: error.message });
   }
 };
-
-module.exports = { handleRegister, handleLogin };

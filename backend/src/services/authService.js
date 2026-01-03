@@ -1,45 +1,45 @@
-const db = require("../configs/database.js");
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-require("dotenv").config();
+import db from "../configs/database.js";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
 
+dotenv.config();
 const saltRounds = 10;
 
 const register = async (userData) => {
   const { full_name, email, password, phone } = userData;
 
-  const [existing] = await db.query(
-    "SELECT user_id FROM User WHERE email = ?",
-    [email]
-  );
+  const existing = await db("users")
+    .select("user_id")
+    .where("email", email)
+    .first();
 
-  if (existing.length > 0) throw new Error("Email này đã được sử dụng");
+  if (existing) throw new Error("Email này đã được sử dụng");
+
   const password_hash = await bcrypt.hash(password, saltRounds);
 
-  const [result] = await db.query(
-    "INSERT INTO User (full_name, email, password_hash, phone) VALUES (?, ?, ?, ?)",
-    [full_name, email, password_hash, phone]
-  );
-  return result.insertId;
+  const [insertId] = await db("users").insert({
+    full_name,
+    email,
+    password_hash,
+    phone,
+  });
+
+  return insertId;
 };
 
 const login = async (email, password) => {
-  const [customers] = await db.query("SELECT * FROM User WHERE email = ?", [
-    email,
-  ]);
-  if (customers.length === 0)
-    throw new Error("Email hoặc mật khẩu không chính xác");
+  const user = await db("users").where("email", email).first();
+  if (!user) throw new Error("Email hoặc mật khẩu không chính xác");
 
-  const customer = customers[0];
-
-  const isMatch = await bcrypt.compare(password, customer.password_hash);
+  const isMatch = await bcrypt.compare(password, user.password_hash);
   if (!isMatch) throw new Error("Email hoặc mật khẩu không chính xác");
 
   const token = jwt.sign(
     {
-      customer_id: customer.user_id,
-      email: customer.email,
-      role: customer.role,
+      user_id: user.user_id,
+      email: user.email,
+      role: user.role,
     },
     process.env.JWT_SECRET,
     { expiresIn: "1d" }
@@ -48,12 +48,12 @@ const login = async (email, password) => {
   return {
     token,
     user: {
-      id: customer.user_id,
-      full_name: customer.full_name,
-      email: customer.email,
-      role: customer.role,
+      id: user.user_id,
+      full_name: user.full_name,
+      email: user.email,
+      role: user.role,
     },
   };
 };
 
-module.exports = { register, login };
+export default { register, login };

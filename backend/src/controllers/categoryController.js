@@ -1,8 +1,8 @@
-const categoryService = require("../services/categoryService.js");
+import * as categoryService from "../services/categoryService.js";
 
-const getAllCategory = async (req, res) => {
+export const getAllCategorys = async (req, res) => {
   try {
-    const categorys = await categoryService.getAllCategory();
+    const categorys = await categoryService.getAllCategoriesService();
 
     res.status(200).json({
       success: true,
@@ -17,28 +17,31 @@ const getAllCategory = async (req, res) => {
   }
 };
 
-const addCategory = async (req, res) => {
+export const createCategory = async (req, res) => {
   try {
-    const { category_name, description } = req.body;
+    const { name, description, status } = req.body;
 
-    if (!category_name || !description) {
+    if (!name) {
       return res
         .status(400)
-        .json({ success: false, message: "Dữ liệu không hợp lệ" });
+        .json({ success: false, message: "Tên danh mục không được để trống" });
     }
 
-    const result = await categoryService.addCategory(
-      category_name,
-      description
-    );
+    const result = await categoryService.createCategoryService({
+      name,
+      description,
+      status,
+    });
 
-    res.status(200).json({ success: true, message: result.message });
+    res.status(201).json({
+      success: true,
+      message: result.message,
+      id: result.id,
+    });
   } catch (error) {
-    res.status(500).json({
+    res.status(400).json({
       success: false,
-      message: "Lỗi hệ thống",
+      message: error.message || "Lỗi khi tạo danh mục",
     });
   }
 };
-
-module.exports = { getAllCategory, addCategory };
