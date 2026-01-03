@@ -52,50 +52,74 @@ export const getAllProductsService = async () => {
   const [rows] = await db.raw(query);
   return rows;
 };
-
 export const getProductDetailService = async (id) => {
   const productQuery = `
-    SELECT 
-      p.*, 
-      c.name as category_name,
-      d.design_json,
-      d.thumbnail_url as design_thumbnail
+    SELECT p.*, c.name as category_name
     FROM products p
     LEFT JOIN categorys c ON p.category_id = c.category_id
-    LEFT JOIN design_product_variant dpv ON p.product_id = dpv.product_variant_id AND dpv.type = 'product'
-    LEFT JOIN designs d ON dpv.design_id = d.design_id
     WHERE p.product_id = ? AND p.is_active = 1
   `;
-
   const [productRows] = await db.raw(productQuery, [id]);
   const product = productRows[0];
-
   if (!product) return null;
-
-  if (product.design_json) {
-    try {
-      product.design_json = JSON.parse(product.design_json);
-    } catch (e) {
-      console.error("Lỗi format JSON thiết kế:", e);
-      product.design_json = null;
-    }
-  }
 
   const variantsQuery = `
     SELECT 
       v.variant_id, v.sku, v.stock_quantity,
-      pri.base_price, pri.sale_price
+      pri.base_price, pri.sale_price,
+      a.name as attr_name,
+      av.value as attr_value
     FROM variants v
     LEFT JOIN prices pri ON v.variant_id = pri.variant_id
+    LEFT JOIN variant_attribute_values vav ON v.variant_id = vav.variant_id
+    LEFT JOIN attribute_values av ON vav.attribute_value_id = av.attribute_value_id
+    LEFT JOIN attributes a ON av.attribute_id = a.attribute_id
     WHERE v.product_id = ?
   `;
-  const [variants] = await db.raw(variantsQuery, [id]);
-  product.variants = variants;
+  const [variantRows] = await db.raw(variantsQuery, [id]);
 
+  const variantsMap = {};
+  const allAttributes = {};
+
+  variantRows.forEach((row) => {
+    if (!variantsMap[row.variant_id]) {
+      variantsMap[row.variant_id] = {
+        variant_id: row.variant_id,
+        sku: row.sku,
+        stock_quantity: row.stock_quantity,
+        base_price: row.base_price,
+        sale_price: row.sale_price,
+        attributes: {},
+      };
+    }
+
+    if (row.attr_name && row.attr_value) {
+      variantsMap[row.variant_id].attributes[row.attr_name] = row.attr_value;
+
+      if (!allAttributes[row.attr_name]) {
+        allAttributes[row.attr_name] = new Set();
+      }
+      allAttributes[row.attr_name].add(row.attr_value);
+    }
+  });
+
+  Object.keys(allAttributes).forEach((key) => {
+    allAttributes[key] = Array.from(allAttributes[key]);
+  });
+
+  const variantsArray = Object.values(variantsMap);
+  product.variants = variantsArray;
+  product.product_attributes = allAttributes;
+
+  // CẬP NHẬT: Lấy cả ảnh sản phẩm và ảnh variant
+  const variantIds = variantsArray.map((v) => v.variant_id);
   const imagesQuery = `
-    SELECT url, is_main 
+    SELECT url, is_main, imageable_id, image_type 
     FROM images 
-    WHERE imageable_id = ? AND image_type = 'product'
+    WHERE (imageable_id = ? AND image_type = 'product')
+       OR (imageable_id IN (${
+         variantIds.length > 0 ? variantIds.join(",") : "0"
+       }) AND image_type = 'variant')
     ORDER BY is_main DESC
   `;
   const [images] = await db.raw(imagesQuery, [id]);
