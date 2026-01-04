@@ -1,0 +1,8 @@
+.image-wrapper {
+  width: 100%;
+  height: 500px; /* Cố định bằng chiều cao bạn muốn */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+}
