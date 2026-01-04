@@ -229,11 +229,11 @@ const DesignCanvas = ({ designData, userSelections, variantImage }) => {
           >
             <pre className="m-0">
               {`{
-  "x": ${debugInfo.x},
-  "y": ${debugInfo.y},
-  "width": ${debugInfo.width},
-  "height": ${debugInfo.height}
-}`}
+                  "x": ${debugInfo.x},
+                  "y": ${debugInfo.y},
+                  "width": ${debugInfo.width},
+                  "height": ${debugInfo.height}
+              }`}
             </pre>
           </div>
         </div>

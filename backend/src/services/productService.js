@@ -146,7 +146,7 @@ export const createProductService = async (productData) => {
         const [variantId] = await trx("variants").insert({
           product_id: productId,
           sku: variant.sku,
-          stock_quality: variant.stock_quality || 0,
+          stock_quantity: variant.stock_quantity || 0,
         });
 
         await trx("prices").insert({
@@ -172,6 +172,7 @@ export const createProductService = async (productData) => {
     return productId;
   });
 };
+
 export const getVariantDetailService = async (variantId) => {
   const variantQuery = `
     SELECT 

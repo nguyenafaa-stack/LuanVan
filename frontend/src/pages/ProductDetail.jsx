@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
-import DesignCanvas from "../components/DesignCanvas";
+import DesignCanvas from "../components/Demo.jsx";
 
 // ============== CUSTOM HOOKS ==============
 
-// Hook quản lý dữ liệu sản phẩm
 const useProduct = (productId) => {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);

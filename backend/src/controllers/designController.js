@@ -92,3 +92,17 @@ export const getDesignsByVariant = async (req, res) => {
     });
   }
 };
+
+export const updateDesign = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await designService.updateDesignService(id, req.body);
+
+    res.status(200).json({
+      message: "Cập nhật thiết kế thành công",
+      data: result,
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};

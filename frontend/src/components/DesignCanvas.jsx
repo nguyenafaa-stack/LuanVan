@@ -85,7 +85,6 @@ const DesignCanvas = ({ designData, userSelections, variantImage }) => {
         .sort((a, b) => a.zIndex - b.zIndex)
     : [];
 
-  // Tìm layer màu chữ nếu có
   const colorLayers = layers.filter((l) => l.type === "color_option");
 
   return (
@@ -116,7 +115,6 @@ const DesignCanvas = ({ designData, userSelections, variantImage }) => {
             }
 
             if (item.type === "text") {
-              // Tìm màu chữ được chọn (nếu có)
               const colorLayer = colorLayers.find(
                 (cl) => cl.target_layer === item.layer
               );

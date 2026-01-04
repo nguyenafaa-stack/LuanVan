@@ -44,7 +44,6 @@ export const linkDesignToVariantsService = async (data) => {
 };
 
 export const getDesignsByVariantService = async (variantId) => {
-  // 1. Tìm product_id của variant này để lấy các thiết kế gán cho cấp Product
   const variant = await db("variants")
     .where("variant_id", variantId)
     .select("product_id")
@@ -54,9 +53,6 @@ export const getDesignsByVariantService = async (variantId) => {
 
   const productId = variant.product_id;
 
-  // 2. Truy vấn lấy tất cả design thỏa mãn 1 trong 2 điều kiện:
-  // - Gán trực tiếp cho variant_id (type = 'variant')
-  // - Gán cho product_id của variant đó (type = 'product')
   const designs = await db("designs as d")
     .join("design_product_variant as dpv", "d.design_id", "dpv.design_id")
     .where(function () {
@@ -66,9 +62,8 @@ export const getDesignsByVariantService = async (variantId) => {
         .andWhere("dpv.type", "product");
     })
     .select("d.design_id", "d.name", "d.design_json", "d.thumbnail_url")
-    .distinct(); // Tránh trùng lặp nếu gán cả ở product và variant
+    .distinct();
 
-  // Parse design_json từ string sang object trước khi trả về cho Frontend
   return designs.map((design) => ({
     ...design,
     design_json:
@@ -76,4 +71,29 @@ export const getDesignsByVariantService = async (variantId) => {
         ? JSON.parse(design.design_json)
         : design.design_json,
   }));
+};
+
+export const updateDesignService = async (id, data) => {
+  const { name, thumbnail_url, design_json } = data;
+  const updateData = {
+    name,
+    thumbnail_url,
+  };
+
+  if (design_json !== undefined) {
+    updateData.design_json =
+      typeof design_json === "string"
+        ? design_json
+        : JSON.stringify(design_json);
+  }
+
+  const rowsAffected = await db("designs")
+    .where("design_id", id)
+    .update(updateData);
+
+  if (rowsAffected === 0) {
+    throw new Error("Không tìm thấy mẫu thiết kế để cập nhật");
+  }
+
+  return { design_id: id, ...data };
 };

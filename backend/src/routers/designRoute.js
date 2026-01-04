@@ -7,5 +7,6 @@ router.post("/create", designController.createDesign);
 router.get("/", designController.getAllDesigns);
 router.post("/link-to-variants", designController.linkDesignToVariants);
 router.get("/variant/:variant_id", designController.getDesignsByVariant);
+router.put("/:id", designController.updateDesign);
 
 export default router;
