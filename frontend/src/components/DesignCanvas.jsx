@@ -7,136 +7,97 @@ import {
 } from "react-konva";
 import useImage from "use-image";
 
+// Endpoint mặc định nối URL
+const BASE_URL = "http://localhost:3000";
+
 const URLImage = ({ src, onLoad, ...props }) => {
   const [image] = useImage(src, "Anonymous");
-
   useEffect(() => {
-    if (image && onLoad) {
-      onLoad(image);
-    }
+    if (image && onLoad) onLoad(image);
   }, [image, onLoad]);
-
   return <KonvaImage image={image} {...props} draggable={false} />;
 };
 
 const DesignCanvas = ({ designData, userSelections, variantImage }) => {
-  const [mockupDimensions, setMockupDimensions] = useState({
+  const [mockupDim, setMockupDim] = useState({
     width: 500,
     height: 500,
     x: 0,
     y: 0,
   });
 
-  const formatImageUrl = (url) => {
-    if (!url) return "";
-    return url.startsWith("http")
-      ? url
-      : `http://localhost:3000/uploads/products/shirts/${url}`;
+  const formatUrl = (url) => {
+    if (!url || url.startsWith("http") || url.startsWith("blob:")) return url;
+    return `${BASE_URL}/uploads/${
+      url.startsWith("products/") ? "" : "products/"
+    }${url}`;
   };
 
-  const handleMockupLoad = useCallback((image) => {
-    const canvasWidth = 500;
-    const canvasHeight = 500;
-    const imgRatio = image.width / image.height;
-    const canvasRatio = canvasWidth / canvasHeight;
-
-    let newWidth, newHeight, x, y;
-
-    if (imgRatio > canvasRatio) {
-      newWidth = canvasWidth;
-      newHeight = canvasWidth / imgRatio;
-      x = 0;
-      y = (canvasHeight - newHeight) / 2;
-    } else {
-      newHeight = canvasHeight;
-      newWidth = canvasHeight * imgRatio;
-      x = (canvasWidth - newWidth) / 2;
-      y = 0;
-    }
-
-    setMockupDimensions((prev) => {
-      if (
-        prev.width === newWidth &&
-        prev.height === newHeight &&
-        prev.x === x &&
-        prev.y === y
-      ) {
-        return prev;
-      }
-      return { width: newWidth, height: newHeight, x, y };
-    });
+  const handleMockupLoad = useCallback((img) => {
+    const ratio = img.width / img.height;
+    const size = 500;
+    // Tính toán để ảnh luôn "Fit" trong khung 500x500
+    const w = ratio > 1 ? size : size * ratio;
+    const h = ratio > 1 ? size / ratio : size;
+    setMockupDim({ width: w, height: h, x: (size - w) / 2, y: (size - h) / 2 });
   }, []);
-
-  useEffect(() => {
-    setMockupDimensions({
-      width: 500,
-      height: 500,
-      x: 0,
-      y: 0,
-    });
-  }, [variantImage]);
 
   if (!designData) return null;
 
-  const frontSide = designData.find((side) => side.type === "F");
-  const layers = frontSide
-    ? frontSide.detail
-        .filter((item) => item.type !== "image_static")
-        .sort((a, b) => a.zIndex - b.zIndex)
-    : [];
-
-  const colorLayers = layers.filter((l) => l.type === "color_option");
+  // Lấy danh sách layer mặt trước
+  const layers =
+    designData
+      .find((s) => s.type === "F")
+      ?.detail.filter((l) => l.type !== "image_static")
+      .sort((a, b) => a.zIndex - b.zIndex) || [];
 
   return (
-    <div className="d-flex justify-content-center bg-light p-2 rounded border shadow-sm">
+    <div className="d-flex justify-content-center bg-white p-2 rounded border shadow-sm overflow-hidden">
       <Stage width={500} height={500}>
         <Layer>
+          {/* Mockup nền (Áo/Ly/Phôi) */}
           <URLImage
             src={variantImage}
             onLoad={handleMockupLoad}
-            {...mockupDimensions}
+            {...mockupDim}
           />
 
           {layers.map((item) => {
-            if (item.type === "image_option") {
-              const selectedId = userSelections[item.layer];
-              const selectedOpt = item.options?.find(
-                (o) => o.id === selectedId
-              );
-              if (!selectedOpt) return null;
+            const val = userSelections[item.layer];
 
-              return (
+            if (item.type.includes("image") || item.type.includes("upload")) {
+              let imgSrc = "";
+              if (item.type.includes("option")) {
+                imgSrc = formatUrl(
+                  item.options?.find((o) => o.id === val)?.image_url
+                );
+              } else {
+                imgSrc = val;
+              }
+              return imgSrc ? (
                 <URLImage
                   key={item.layer}
-                  src={formatImageUrl(selectedOpt.image_url)}
+                  src={imgSrc}
                   {...item.default_config}
                 />
-              );
+              ) : null;
             }
 
-            if (item.type === "text") {
-              const colorLayer = colorLayers.find(
-                (cl) => cl.target_layer === item.layer
+            if (item.type.includes("text")) {
+              const colorOpt = layers.find(
+                (l) =>
+                  l.type === "color_option" && l.target_layer === item.layer
               );
-              let textColor = item.default_config.fill || "#000000";
-
-              if (colorLayer && userSelections[colorLayer.layer]) {
-                const selectedColor = colorLayer.options?.find(
-                  (opt) => opt.id === userSelections[colorLayer.layer]
-                );
-                if (selectedColor) {
-                  textColor = selectedColor.color;
-                }
-              }
+              const selectedColor = colorOpt?.options?.find(
+                (o) => o.id === userSelections[colorOpt.layer]
+              )?.color;
 
               return (
                 <KonvaText
                   key={item.layer}
                   {...item.default_config}
-                  fill={textColor}
-                  text={String(
-                    userSelections[item.layer] || item.default_config.text || ""
-                  )}
+                  fill={selectedColor || item.default_config.fill || "#000000"}
+                  text={String(val || item.default_config.text || "")}
                 />
               );
             }

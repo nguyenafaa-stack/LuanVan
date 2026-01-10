@@ -42,7 +42,7 @@ const ProductList = () => {
                     product.image_url
                       ? product.image_url.startsWith("http")
                         ? product.image_url
-                        : `http://localhost:3000/uploads/products/shirts/${product.image_url}`
+                        : `http://localhost:3000/uploads/products/${product.image_url}`
                       : null
                   }
                   className="card-img-top p-3 img-hover"
