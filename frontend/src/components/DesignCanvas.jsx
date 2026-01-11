@@ -7,14 +7,16 @@ import {
 } from "react-konva";
 import useImage from "use-image";
 
-// Endpoint mặc định nối URL
 const BASE_URL = "http://localhost:3000";
 
 const URLImage = ({ src, onLoad, ...props }) => {
-  const [image] = useImage(src, "Anonymous");
+  const [image, status] = useImage(src, "Anonymous");
+
   useEffect(() => {
-    if (image && onLoad) onLoad(image);
-  }, [image, onLoad]);
+    if (image && status === "loaded" && onLoad) onLoad(image);
+  }, [image, status, onLoad]);
+
+  if (status !== "loaded") return null;
   return <KonvaImage image={image} {...props} draggable={false} />;
 };
 
@@ -28,15 +30,14 @@ const DesignCanvas = ({ designData, userSelections, variantImage }) => {
 
   const formatUrl = (url) => {
     if (!url || url.startsWith("http") || url.startsWith("blob:")) return url;
-    return `${BASE_URL}/uploads/${
-      url.startsWith("products/") ? "" : "products/"
-    }${url}`;
+    if (url.startsWith("/uploads")) return `${BASE_URL}${url}`;
+    if (url.startsWith("products/")) return `${BASE_URL}/uploads/${url}`;
+    return `${BASE_URL}/uploads/design/${url}`;
   };
 
   const handleMockupLoad = useCallback((img) => {
     const ratio = img.width / img.height;
     const size = 500;
-    // Tính toán để ảnh luôn "Fit" trong khung 500x500
     const w = ratio > 1 ? size : size * ratio;
     const h = ratio > 1 ? size / ratio : size;
     setMockupDim({ width: w, height: h, x: (size - w) / 2, y: (size - h) / 2 });
@@ -44,60 +45,82 @@ const DesignCanvas = ({ designData, userSelections, variantImage }) => {
 
   if (!designData) return null;
 
-  // Lấy danh sách layer mặt trước
   const layers =
     designData
       .find((s) => s.type === "F")
-      ?.detail.filter((l) => l.type !== "image_static")
-      .sort((a, b) => a.zIndex - b.zIndex) || [];
+      ?.detail.filter(
+        (l) => l.type !== "image_static" && l.type !== "color_option"
+      )
+      .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)) || [];
 
   return (
     <div className="d-flex justify-content-center bg-white p-2 rounded border shadow-sm overflow-hidden">
       <Stage width={500} height={500}>
         <Layer>
-          {/* Mockup nền (Áo/Ly/Phôi) */}
           <URLImage
-            src={variantImage}
+            src={formatUrl(variantImage)}
             onLoad={handleMockupLoad}
             {...mockupDim}
           />
 
           {layers.map((item) => {
-            const val = userSelections[item.layer];
+            if (!item.default_config) return null;
 
+            const selectionValue = userSelections[item.layer];
+            const {
+              draggable,
+              zIndex,
+              src: defaultSrc,
+              ...safeConfig
+            } = item.default_config;
+
+            // IMAGE
             if (item.type.includes("image") || item.type.includes("upload")) {
               let imgSrc = "";
-              if (item.type.includes("option")) {
-                imgSrc = formatUrl(
-                  item.options?.find((o) => o.id === val)?.image_url
+
+              if (item.type === "image_option") {
+                let selectedOpt = item.options?.find(
+                  (o) => String(o.id) === String(selectionValue)
                 );
+
+                if (!selectedOpt && item.options && item.options.length > 0) {
+                  selectedOpt = item.options[0];
+                }
+
+                imgSrc = selectedOpt ? formatUrl(selectedOpt.image_url) : "";
               } else {
-                imgSrc = val;
+                imgSrc = selectionValue;
               }
+
               return imgSrc ? (
                 <URLImage
-                  key={item.layer}
+                  key={`${item.layer}-${imgSrc}`}
                   src={imgSrc}
-                  {...item.default_config}
+                  {...safeConfig}
                 />
               ) : null;
             }
 
+            // TEXT
             if (item.type.includes("text")) {
-              const colorOpt = layers.find(
-                (l) =>
-                  l.type === "color_option" && l.target_layer === item.layer
-              );
-              const selectedColor = colorOpt?.options?.find(
-                (o) => o.id === userSelections[colorOpt.layer]
+              const colorLayer = designData
+                .find((s) => s.type === "F")
+                ?.detail.find(
+                  (l) =>
+                    l.type === "color_option" && l.target_layer === item.layer
+                );
+
+              const selectedColorId = userSelections[colorLayer?.layer];
+              const activeColor = colorLayer?.options?.find(
+                (o) => String(o.id) === String(selectedColorId)
               )?.color;
 
               return (
                 <KonvaText
                   key={item.layer}
-                  {...item.default_config}
-                  fill={selectedColor || item.default_config.fill || "#000000"}
-                  text={String(val || item.default_config.text || "")}
+                  {...safeConfig}
+                  fill={activeColor || safeConfig.fill || "#000000"}
+                  text={String(selectionValue || safeConfig.text || "")}
                 />
               );
             }

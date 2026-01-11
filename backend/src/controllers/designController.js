@@ -106,3 +106,16 @@ export const updateDesign = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+
+export const uploadTempImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Không có file" });
+    }
+    // Trả về đường dẫn để frontend hiển thị và lưu vào JSON sau này
+    const imageUrl = `/uploads/design/${req.file.filename}`;
+    res.status(200).json({ success: true, url: imageUrl });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
